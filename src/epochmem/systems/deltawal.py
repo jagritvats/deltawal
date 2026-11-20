@@ -128,7 +128,7 @@ class _DeltaWALBase(MemorySystem):
 
     def _common(self, ns, qemb):
         s = self.ctx.cfg["systems"]
-        facts = self.ctx.store.search(ns, qemb, self.ctx.cfg["memory"]["top_k_facts"], with_embedding=True)
+        facts = self.store.search(ns, qemb, self.ctx.cfg["memory"]["top_k_facts"], with_embedding=True)
         committed, delta = self.ctx.wal.snapshot(ns)     # single Redis round trip
         # Lazy fill (query arrived before the background embedder): turn vectors for gating only,
         # then sentence vectors only for the few gated turns that still lack them.
@@ -248,3 +248,23 @@ class DeltaWALLazy(_DeltaWALBase):
                                           f"{f['entity_key']}: {f['fact_text']}") for f in new_facts]
         msgs = self._messages(prep, [x[2] for x in sorted(items, key=lambda x: (x[0], x[1]))])
         return msgs, [strip_emb(f) for f in kept], [{"lazy_fact": f["entity_key"]} for f in new_facts]
+
+
+_DW_VSTORE: dict = {}
+
+
+class DeltaWALVersioned(DeltaWALPrompt):
+    """DeltaWAL with an append-only, versioned committed store (keyed by user_id, entity_key,
+    source_epoch) instead of the CAS-fenced mutable one. Same write-ahead WAL, gating, epoch tags and
+    precedence instruction as deltawal_prompt; history is never overwritten, at any lag."""
+    name = "deltawal_versioned"
+    policy = "append"
+
+    @property
+    def store(self):
+        key = id(self.ctx)
+        if key not in _DW_VSTORE:
+            from ..store.pg import FactStore
+            _DW_VSTORE[key] = FactStore(self.ctx.cfg["infra"]["pg_dsn"], self.ctx.m["embed_dim"],
+                                        table="facts_versioned", versioned=True)
+        return _DW_VSTORE[key]

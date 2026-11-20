@@ -7,7 +7,7 @@ from pathlib import Path
 
 SYSTEM_ORDER = ["B1_sync", "B1_sync_versioned", "B2_async", "B3_recency", "B3_recency_matched", "B3_recency_matched_user",
                 "B4_epoch_wal", "deltawal_prompt", "deltawal_shadow",
-                "deltawal_shadow_v2", "deltawal_lazy"]
+                "deltawal_shadow_v2", "deltawal_lazy", "deltawal_versioned"]
 
 
 def load_rows(path: Path) -> list[dict]:

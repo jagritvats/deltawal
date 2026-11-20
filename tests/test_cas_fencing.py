@@ -104,3 +104,21 @@ def test_versioned_store_is_append_only():
     assert [r[0] for r in rows] == [3, 5, 7]                 # every version kept, duplicates ignored
     assert s.key_epochs(ns) == {"user.car": 7}               # latest version per key
     s.conn.execute("DROP TABLE IF EXISTS facts_vtest")
+
+
+def test_concurrent_store_init_on_fresh_table_does_not_race():
+    """Regression: parallel workers creating the same fresh table used to hit a pg_type UniqueViolation."""
+    from concurrent.futures import ThreadPoolExecutor
+    from epochmem.config import load_config
+    from epochmem.store.pg import FactStore
+    cfg = load_config("configs/m1_local.yaml")
+    for versioned in (False, True):
+        table = f"facts_race_{uuid.uuid4().hex[:8]}"
+        try:
+            with ThreadPoolExecutor(8) as ex:
+                stores = list(ex.map(lambda _: FactStore(cfg["infra"]["pg_dsn"], dim=4, table=table,
+                                                         versioned=versioned), range(16)))
+            assert len(stores) == 16
+        finally:
+            with psycopg.connect(cfg["infra"]["pg_dsn"], autocommit=True) as c:
+                c.execute(f"DROP TABLE IF EXISTS {table}")

@@ -79,7 +79,13 @@ class FactStore:
             self._sql = {k: INSERT_VERSIONED.format(table=table) for k in ("lww", "cas", "append")}
         self._local = threading.local()
         with psycopg.connect(dsn, autocommit=True) as c:
-            c.execute((SCHEMA_VERSIONED if versioned else SCHEMA).format(dim=dim, table=table))
+            # Serialize DDL across threads/processes: concurrent CREATE ... IF NOT EXISTS can still race
+            # on pg_type ("duplicate key ... pg_type_typname_nsp_index") on a fresh database.
+            c.execute("SELECT pg_advisory_lock(hashtext(%s))", (f"epochmem-ddl:{table}",))
+            try:
+                c.execute((SCHEMA_VERSIONED if versioned else SCHEMA).format(dim=dim, table=table))
+            finally:
+                c.execute("SELECT pg_advisory_unlock(hashtext(%s))", (f"epochmem-ddl:{table}",))
 
     @property
     def conn(self) -> psycopg.Connection:
