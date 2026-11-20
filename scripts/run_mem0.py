@@ -290,11 +290,15 @@ def main() -> int:
     ap.add_argument("--budget-usd", type=float, default=None, help="override the opencode-zen per-process budget")
     ap.add_argument("--ingest-only", action="store_true", help="build Mem0 snapshots, no reader calls")
     ap.add_argument("--reingest-check", action="store_true", help="verify re-ingestion is fully cached")
+    ap.add_argument("--systems", nargs="+", default=None, help="subset of Mem0_async Mem0_deltawal Mem0_sync")
     ap.add_argument("--ingest-workers", type=int, default=1,
                     help="with --ingest-only: questions ingested in parallel threads inside this one process")
     ap.add_argument("--no-judge", action="store_true", default=True, help="(always) rows are judged later by judge_all.py")
     ap.add_argument("--allow-cloud", action="store_true", default=False)
     args = ap.parse_args()
+    global SYSTEMS
+    if args.systems:
+        SYSTEMS = [(n, l) for n, l in SYSTEMS if n in set(args.systems)]
     set_allow_cloud(args.allow_cloud)
     cfg = load_config(args.config)
     cfg["models"]["reader"] = args.reader

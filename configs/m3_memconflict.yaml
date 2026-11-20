@@ -75,7 +75,7 @@ cloud:
       base_url: https://opencode.ai/inference/openai/v1
       api_key_env: OPENCODE_API_KEY
       max_concurrency: 24
-      budget_usd: 1.00              # per-process hard stop (controls batch; ~$1.8 Zen credit left)
+      budget_usd: 1.30              # Stage D extraction (projected ~$0.9 with prefix sharing)
       extra_body_by_model:
         glm-5.3-flash: {thinking: {type: disabled}}   # Zen serves it with reasoning ON by default (~10x output tokens)
       prices:                       # USD per 1M tokens [input, output] (Zen docs, Nov 2026)

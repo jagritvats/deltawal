@@ -62,8 +62,19 @@ def main() -> int:
                 "evidence_fact_counts": counts, "all_evidence_extracted": bool(ev) and all(counts),
                 "empty_sessions": sum(1 for v in facts.values() if not v)}
 
+    # Questions that share a history prefix (MemConflict: same user) run sequentially in one worker, shortest
+    # history first, so later chains hit the cache instead of paying for the shared prefix concurrently.
+    groups: dict[str, list] = {}
+    for p in preps:
+        groups.setdefault(str((p.inst.meta or {}).get("user_id") or p.inst.qid), []).append(p)
+    group_list = [sorted(g, key=lambda p: p.n) for g in groups.values()]
+
+    def run_group(g):
+        return [run(p) for p in g]
+
     with ThreadPoolExecutor(args.workers) as ex:
-        per_q = list(ex.map(run, preps))
+        per_q = [r for rs in ex.map(run_group, group_list) for r in rs]
+    print(f"{len(group_list)} prefix-sharing groups", flush=True)
 
     by_type: dict[str, dict] = {}
     for r in per_q:
@@ -86,7 +97,7 @@ def main() -> int:
         "per_question": per_q,
     }
     out = repo_path(args.out) if args.out else repo_path("runs") / (
-        "precompute_" + repo_path(cfg["dataset"]["heldout_slice"]).stem.split(".")[-1] + ".json")
+        "precompute_" + repo_path(cfg["dataset"].get("heldout_slice") or cfg["dataset"].get("split") or cfg["dataset"]["path"]).stem.split(".")[-1] + ".json")
     out.write_text(json.dumps(report, indent=1), encoding="utf-8")
     print("stats", json.dumps(report["extraction"]), "live_calls", report["live_cloud_calls"],
           "usage", json.dumps(usage), "rate_limited", report["rate_limited"],
