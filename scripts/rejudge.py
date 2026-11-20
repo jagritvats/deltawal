@@ -14,7 +14,7 @@ from epochmem.config import load_config, make_cloud_client, repo_path
 from epochmem.data.stream import prepare
 from epochmem.eval.judge import Judge
 from epochmem.guard import set_allow_cloud
-from epochmem.llm import CLOUD_PREFIX, ModelRouter, OllamaClient
+from epochmem.llm import ModelRouter, OllamaClient, provider_of
 from epochmem.runner import select_instances
 
 
@@ -41,9 +41,11 @@ def main() -> int:
     cache = DiskCache(repo_path(cfg["runtime"]["cache_path"]))
     m = cfg["models"]
     local = OllamaClient(m["endpoint"], cache, num_ctx=m["num_ctx"], seed=cfg["seed"], think=m["think"])
-    cloud = make_cloud_client(cfg, cache, session_id=f"ses_epochmem_rejudge_{args.run_id}") \
-        if args.judge.startswith(CLOUD_PREFIX) else None
-    judge = Judge(ModelRouter(local, cloud, (cfg.get("cloud") or {}).get("min_max_tokens", 2048)), args.judge)
+    prov = provider_of(args.judge)
+    clouds = {prov: make_cloud_client(cfg, cache, session_id=f"ses_epochmem_rejudge_{args.run_id}", provider=prov)} \
+        if prov else {}
+    cloud = clouds.get(prov)
+    judge = Judge(ModelRouter(local, clouds, (cfg.get("cloud") or {}).get("min_max_tokens", 2048)), args.judge)
 
     run_dir = repo_path("runs") / args.run_id
     rows = [json.loads(l) for l in open(run_dir / "results.jsonl", encoding="utf-8")]

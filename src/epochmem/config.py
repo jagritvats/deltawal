@@ -45,14 +45,26 @@ def load_dotenv(path: str | Path = ".env") -> None:
             os.environ.setdefault(k.strip(), v.strip())
 
 
-def make_cloud_client(cfg: "Config", cache, session_id: str = "ses_epochmem"):
-    """Cloud client for `opencode-go/*` models; raises via the guard unless --allow-cloud."""
+def provider_cfg(cfg: "Config", provider: str) -> dict:
+    """Provider settings from `cloud.providers.<name>`; base URL / key come from env vars."""
     import os
-    from .llm import OpenAICompatClient
     load_dotenv()
-    c = cfg.get("cloud", {}) or {}
-    key = os.environ.get(c.get("api_key_env", "OPENCODE_API_KEY"))
-    if not key:
-        raise RuntimeError("cloud API key env var not set")
-    return OpenAICompatClient(c.get("base_url", "https://opencode.ai/inference/go/openai/v1"), key, cache,
-                              seed=cfg["seed"], extra_body=c.get("extra_body") or {}, session_id=session_id)
+    providers = (cfg.get("cloud") or {}).get("providers") or {}
+    if provider not in providers:
+        raise RuntimeError(f"unknown cloud provider {provider!r}; configure cloud.providers.{provider}")
+    pc = dict(providers[provider])
+    base = pc.get("base_url") or os.environ.get(pc.get("base_url_env", ""), "")
+    key = os.environ.get(pc.get("api_key_env", ""), "")
+    if not base or not key:
+        raise RuntimeError(f"provider {provider!r}: set {pc.get('base_url_env') or 'base_url'} and {pc.get('api_key_env')}")
+    pc.update(base_url=base, api_key=key)
+    return pc
+
+
+def make_cloud_client(cfg: "Config", cache, session_id: str = "ses_epochmem", provider: str = "opencode-go"):
+    """Guard-checked OpenAI-compatible client for one provider (raises unless --allow-cloud)."""
+    from .llm import OpenAICompatClient
+    pc = provider_cfg(cfg, provider)
+    return OpenAICompatClient(pc["base_url"], pc["api_key"], cache, seed=cfg["seed"],
+                              extra_body=pc.get("extra_body") or {}, session_id=session_id,
+                              send_session_header=bool(pc.get("session_header", False)))

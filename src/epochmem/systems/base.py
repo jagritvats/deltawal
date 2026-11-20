@@ -22,7 +22,7 @@ from ..memory.extract import Fact, FactExtractor
 from ..store.pg import FactStore
 from ..store.wal import RedisWAL
 from ..stream.bus import SessionBus
-from ..stream.schedule import barrier, commit_order, low_watermark
+from ..stream.schedule import barrier, lagged_commit_order, low_watermark
 from ..tokens import count_messages
 
 READER_SYSTEM = (
@@ -117,7 +117,7 @@ class MemorySystem(ABC):
         ctx = self.ctx
         order = None
         if self.write_mode != "sync":
-            order = commit_order(prep.n, p_ooo, f"{ctx.seed}:{prep.inst.qid}:{p_ooo}")
+            order = lagged_commit_order(prep.n, lag, p_ooo, f"{ctx.seed}:{prep.inst.qid}:{p_ooo}")
         registry_mode = ctx.cfg.get("memory", {}).get("registry_mode", "chrono")
         facts_by_epoch = ctx.extractor.extract_instance(
             prep, order if (registry_mode == "commit_order" and order is not None) else None)

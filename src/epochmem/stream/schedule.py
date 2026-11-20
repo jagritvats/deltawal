@@ -22,6 +22,20 @@ def commit_order(n: int, p_ooo: float, seed_key: str) -> list[int]:
     return [i for _, _, i in sorted(slots)]
 
 
+def lagged_commit_order(n: int, lag: int, p_ooo: float, seed_key: str) -> list[int]:
+    """Commit order with decoupled fault axes.
+
+    The latest `lag` sessions (produce order) are ALWAYS the in-flight tail: they come last, in
+    produce order, so barrier(order, lag) never commits them regardless of p_ooo. p_ooo only
+    permutes commit order among the n-lag earlier sessions. Stragglers are drawn once per
+    (instance, p_ooo) over the full stream and filtered per lag, so the prefix's relative order is
+    identical across lag levels.
+    """
+    lag = max(0, min(lag, n))
+    full = commit_order(n, p_ooo, seed_key)
+    return [i for i in full if i < n - lag] + list(range(n - lag, n))
+
+
 @dataclass(frozen=True)
 class BarrierState:
     applied: tuple[int, ...]     # indices committed before the query, in commit order

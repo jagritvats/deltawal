@@ -89,3 +89,46 @@ def test_oocr_definition():
 def test_normalize_key():
     assert normalize_key(" User.Car Model ") == "user.car_model"
     assert normalize_key("..") == "user.misc"
+
+
+
+def test_lagged_commit_order_never_commits_the_tail():
+    from epochmem.stream.schedule import lagged_commit_order
+    for n in (5, 14, 40):
+        for lag in (0, 1, 3, 5):
+            for p in (0.0, 0.3, 0.9):
+                for seed in range(25):
+                    order = lagged_commit_order(n, lag, p, f"{seed}:q")
+                    b = barrier(order, lag)
+                    tail = set(range(max(0, n - lag), n))
+                    assert sorted(order) == list(range(n))
+                    assert set(b.inflight) == tail and not (set(b.applied) & tail)
+                    assert set(b.applied) == set(range(n - min(lag, n)))
+                    if lag >= 1:
+                        assert n - 1 not in b.applied           # final session never committed at lag>=1
+
+
+def test_lagged_order_prefix_consistent_across_lags_and_lag0_unchanged():
+    from epochmem.stream.schedule import lagged_commit_order
+    full = commit_order(30, 0.3, "42:q")
+    assert lagged_commit_order(30, 0, 0.3, "42:q") == full
+    for lag in (1, 3, 5):
+        pre = lagged_commit_order(30, lag, 0.3, "42:q")[: 30 - lag]
+        assert pre == [i for i in full if i < 30 - lag]
+    assert lagged_commit_order(30, 3, 0.0, "x") == list(range(30))
+
+
+def test_provider_routing_and_caps():
+    from epochmem.config import Config
+    from epochmem.llm import provider_of
+    from epochmem.runner import enforce_provider_caps
+    assert provider_of("gemma4:12b-it-qat") is None
+    assert provider_of("opencode-go/glm-5.3") == "opencode-go"
+    assert provider_of("openai-compat/some-model") == "openai-compat"
+    cfg = Config({"models": {"reader": "opencode-go/glm-5.3", "judge": "gemma4:12b", "extractor": "gemma4:12b"},
+                  "cloud": {"providers": {"opencode-go": {"max_instances": 20}, "openai-compat": {}}}})
+    enforce_provider_caps(cfg, 20)
+    with pytest.raises(RuntimeError):
+        enforce_provider_caps(cfg, 138)
+    cfg["models"]["reader"] = "openai-compat/some-model"
+    enforce_provider_caps(cfg, 138)

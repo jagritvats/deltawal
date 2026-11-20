@@ -58,14 +58,14 @@ def build_ctx(cfg: Config, session_id: str = "ses_epochmem") -> tuple[Ctx, Judge
     """Local Ollama client, plus a guard-checked cloud client when any configured model is
     `opencode-go/*` (raises CloudCallBlocked unless --allow-cloud)."""
     from .config import make_cloud_client
-    from .llm import CLOUD_PREFIX, ModelRouter
+    from .llm import ModelRouter, provider_of
     m, infra, mem = cfg["models"], cfg["infra"], cfg["memory"]
     cache = DiskCache(repo_path(cfg["runtime"]["cache_path"]))
     local = OllamaClient(m["endpoint"], cache, num_ctx=m["num_ctx"], temperature=m["temperature"],
                          seed=cfg["seed"], think=m["think"])
-    needs_cloud = any(str(m[r]).startswith(CLOUD_PREFIX) for r in ("reader", "judge", "extractor"))
-    cloud = make_cloud_client(cfg, cache, session_id=session_id) if needs_cloud else None
-    client = ModelRouter(local, cloud, min_cloud_max_tokens=(cfg.get("cloud") or {}).get("min_max_tokens", 2048))
+    provs = {provider_of(str(m[r])) for r in ("reader", "judge", "extractor")} - {None}
+    clouds = {p: make_cloud_client(cfg, cache, session_id=session_id, provider=p) for p in sorted(provs)}
+    client = ModelRouter(local, clouds, min_cloud_max_tokens=(cfg.get("cloud") or {}).get("min_max_tokens", 2048))
     extractor = FactExtractor(client, m["extractor"], max_facts=mem["max_facts_per_session"],
                               registry_max_keys=mem["registry_max_keys"],
                               asst_chars=mem["assistant_trunc_chars_extract"])
@@ -74,6 +74,18 @@ def build_ctx(cfg: Config, session_id: str = "ses_epochmem") -> tuple[Ctx, Judge
     ctx = Ctx(cfg=cfg, client=client, extractor=extractor, store=FactStore(infra["pg_dsn"], m["embed_dim"]),
               wal=RedisWAL(infra["redis_url"], trim=infra.get("wal_trim", True), dim=m["embed_dim"]), bus=bus, seed=cfg["seed"])
     return ctx, Judge(client, m["judge"])
+
+
+def enforce_provider_caps(cfg: Config, n_instances: int) -> None:
+    """Refuse sweeps larger than a provider's `max_instances` (opencode-go is dev-only)."""
+    from .llm import provider_of
+    providers = (cfg.get("cloud") or {}).get("providers") or {}
+    for role in ("reader", "judge", "extractor"):
+        prov = provider_of(str(cfg["models"][role]))
+        cap = (providers.get(prov) or {}).get("max_instances") if prov else None
+        if cap is not None and n_instances > cap:
+            raise RuntimeError(f"provider {prov!r} is capped at {cap} instances (got {n_instances}); "
+                               f"use a pay-per-token provider for large sweeps")
 
 
 def select_instances(cfg: Config, n_smoke: int | None) -> list[PreparedInstance]:
@@ -154,6 +166,7 @@ def run_instance(prep: PreparedInstance, ctx: Ctx, judge: Judge, run_id: str, ce
             "extra_context": out.extra_context, "reader_cached": out.reader_cached,
             "read_path_ms": out.read_path_ms, "read_llm_ms": out.read_llm_ms, "read_diag": out.read_diag,
             "n_suppressed": len(out.read_diag.get("suppressed", [])),
+            "b3_tail_turns": out.read_diag.get("b3_tail_turns"),
             "cell_wall_s": round(time.perf_counter() - t1, 3),
         }
         writer.append(row)
@@ -180,6 +193,7 @@ def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None
 
     ctx, judge = build_ctx(cfg, session_id=f"ses_epochmem_{run_id}")
     preps = select_instances(cfg, n_smoke)
+    enforce_provider_caps(cfg, len(preps))
     cells = cells_for(cfg, systems, core=core)
     done = writer.done_keys()
     (run_dir / "manifest.json").write_text(json.dumps({

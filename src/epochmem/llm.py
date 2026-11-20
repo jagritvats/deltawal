@@ -180,13 +180,15 @@ class OpenAICompatClient:
 
     def __init__(self, base_url: str, api_key: str, cache: DiskCache | None, timeout: float = 300.0,
                  temperature: float = 0.0, seed: int = 42, extra_body: dict | None = None,
-                 max_retries: int = 4, session_id: str = "ses_epochmem", user_agent: str = "epochmem-bench/0.1"):
+                 max_retries: int = 4, session_id: str = "ses_epochmem", user_agent: str = "epochmem-bench/0.1",
+                 send_session_header: bool = False):
         check_url(base_url)
         self.base_url = base_url.rstrip("/")
         self.cache = cache
-        # Provider requirements: honest client user-agent + stable session id per run.
-        self.http = httpx.Client(timeout=timeout, headers={
-            "Authorization": f"Bearer {api_key}", "User-Agent": user_agent, "x-opencode-session": session_id})
+        headers = {"Authorization": f"Bearer {api_key}", "User-Agent": user_agent}
+        if send_session_header:          # required by some gateways (stable session id per run)
+            headers["x-opencode-session"] = session_id
+        self.http = httpx.Client(timeout=timeout, headers=headers)
         self.temperature, self.seed = temperature, seed
         self.extra_body = extra_body or {}
         self.max_retries = max_retries
@@ -257,28 +259,41 @@ class OpenAICompatClient:
         return [m["id"] for m in self.http.get(url).json().get("data", [])]
 
 
-CLOUD_PREFIX = "opencode-go/"
+CLOUD_PREFIX = "opencode-go/"     # legacy constant (dev-only provider)
+
+
+def provider_of(model: str) -> str | None:
+    """'<provider>/<model>' -> provider; plain Ollama tags (no '/') -> None."""
+    return model.split("/", 1)[0] if "/" in model else None
 
 
 class ModelRouter:
-    """Routes `opencode-go/<model>` ids to the cloud client and everything else to Ollama."""
+    """Routes '<provider>/<model>' ids to that provider's cloud client; plain tags go to Ollama."""
 
-    def __init__(self, local: OllamaClient, cloud: OpenAICompatClient | None = None,
+    def __init__(self, local: OllamaClient, clouds: "dict[str, OpenAICompatClient] | OpenAICompatClient | None" = None,
                  min_cloud_max_tokens: int = 2048):
-        self.local, self.cloud = local, cloud
+        self.local = local
+        if isinstance(clouds, OpenAICompatClient):
+            clouds = {"opencode-go": clouds}
+        self.clouds = clouds or {}
         self.min_cloud_max_tokens = min_cloud_max_tokens   # cloud models may spend tokens on reasoning first
         self.cache = local.cache
         self.stats = local.stats
 
+    @property
+    def cloud(self):                      # backwards-compatible accessor (first configured provider)
+        return next(iter(self.clouds.values()), None)
+
     def _pick(self, model: str):
-        if model.startswith(CLOUD_PREFIX):
-            if self.cloud is None:
-                raise RuntimeError(f"{model} requested but no cloud client configured (need --allow-cloud)")
-            return self.cloud, model[len(CLOUD_PREFIX):]
-        return self.local, model
+        prov = provider_of(model)
+        if prov is None:
+            return self.local, model
+        if prov not in self.clouds:
+            raise RuntimeError(f"{model} requested but provider {prov!r} is not configured (need --allow-cloud)")
+        return self.clouds[prov], model.split("/", 1)[1]
 
     def _kw(self, c, kw):
-        if c is self.cloud:
+        if c is not self.local:
             kw = {**kw, "max_tokens": max(kw.get("max_tokens", 512), self.min_cloud_max_tokens)}
             kw.pop("options", None)
         return kw

@@ -13,6 +13,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/m2_dev_local.yaml")
     ap.add_argument("--model", default="glm-5.3")
+    ap.add_argument("--provider", default="opencode-go")
     ap.add_argument("--allow-cloud", action="store_true", default=False)
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args()
@@ -20,7 +21,7 @@ def main() -> int:
     cache = DiskCache(repo_path(cfg["runtime"]["cache_path"]))
     set_allow_cloud(False)
     try:
-        make_cloud_client(cfg, cache)
+        make_cloud_client(cfg, cache, provider=args.provider)
         print("[FAIL] guard did not block cloud client without --allow-cloud")
         return 1
     except CloudCallBlocked:
@@ -28,7 +29,7 @@ def main() -> int:
     if not args.allow_cloud:
         return 0
     set_allow_cloud(True)
-    client = make_cloud_client(cfg, cache)
+    client = make_cloud_client(cfg, cache, provider=args.provider)
     if args.list:
         print("models:", client.list_models())
     r = client.chat(args.model, [{"role": "user", "content": "Reply with exactly: OK"}], max_tokens=64)

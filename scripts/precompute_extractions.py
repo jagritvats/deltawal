@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from epochmem.config import load_config
 from epochmem.guard import set_allow_cloud
 from epochmem.runner import build_ctx, select_instances
-from epochmem.stream.schedule import commit_order
+from epochmem.stream.schedule import lagged_commit_order
 
 
 def main() -> int:
@@ -28,7 +28,9 @@ def main() -> int:
         if cfg["memory"].get("registry_mode") == "commit_order":
             for p in cfg["grid"]["p_ooo"]:
                 if p > 0:
-                    jobs.append((prep, commit_order(prep.n, float(p), f"{cfg['seed']}:{prep.inst.qid}:{float(p)}")))
+                    for lag in cfg["grid"]["lags"]:
+                        jobs.append((prep, lagged_commit_order(prep.n, lag, float(p),
+                                                               f"{cfg['seed']}:{prep.inst.qid}:{float(p)}")))
 
     def run(job):
         prep, order = job
