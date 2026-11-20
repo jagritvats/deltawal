@@ -196,6 +196,9 @@ class DeltaWALShadowV2(_DeltaWALBase):
     def build_messages(self, prep, ns, ing, qemb):
         facts, gated = self._common(ns, qemb)
         kept, sup = shadow_mask_v2(facts, gated, self.ctx.cfg["systems"]["shadow_v2_threshold"])
+        _, allsup = shadow_mask_v2(facts, gated, -1.0)      # raw max newer-sentence sim per fact
+        self.read_diag["shadow_scores"] = [[f["entity_key"], f["source_epoch"], round(f["shadow_sim"], 4)]
+                                           for f in allsup]
         self.read_diag["suppressed"] = [
             {"entity_key": f["entity_key"], "source_epoch": f["source_epoch"], "fact_text": f["fact_text"],
              "shadowed_by": f["shadowed_by"], "sim": round(f["shadow_sim"], 4)} for f in sup]

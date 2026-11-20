@@ -67,4 +67,7 @@ def make_cloud_client(cfg: "Config", cache, session_id: str = "ses_epochmem", pr
     pc = provider_cfg(cfg, provider)
     return OpenAICompatClient(pc["base_url"], pc["api_key"], cache, seed=cfg["seed"],
                               extra_body=pc.get("extra_body") or {}, session_id=session_id,
-                              send_session_header=bool(pc.get("session_header", False)))
+                              send_session_header=bool(pc.get("session_header", False)),
+                              max_concurrency=int(pc.get("max_concurrency", 2)),
+                              prices=pc.get("prices"), budget_usd=pc.get("budget_usd"),
+                              extra_body_by_model=pc.get("extra_body_by_model"))

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -38,6 +39,7 @@ class CallStats:
         self.chat_calls = 0
         self.chat_wall_s = 0.0
         self.embed_calls = 0
+        self.rate_limited = 0
 
     def add_chat(self, wall: float) -> None:
         with self._lock:
@@ -55,6 +57,7 @@ class OllamaClient:
         self.defaults = {"num_ctx": num_ctx, "temperature": temperature, "seed": seed}
         self.think = think
         self.stats = CallStats()
+        self.embed_num_ctx = 2048
 
     # ---------------- chat ----------------
     def chat(self, model: str, messages: list[dict], *, schema: dict | None = None,
@@ -130,7 +133,10 @@ class OllamaClient:
         for s in range(0, len(todo), batch_size):
             chunk = todo[s:s + batch_size]
             check_url(url)
-            r = self.http.post(url, json={"model": model, "input": [c[1] for c in chunk], "keep_alive": "60m"})
+            # small context for the embedder (inputs are <~600 tokens) so it co-resides with the reader in VRAM;
+            # vectors are unchanged for inputs shorter than num_ctx, and options are not part of the cache key
+            r = self.http.post(url, json={"model": model, "input": [c[1] for c in chunk], "keep_alive": "60m",
+                                          "options": {"num_ctx": self.embed_num_ctx}})
             r.raise_for_status()
             vecs = r.json()["embeddings"]
             with self.stats._lock:
@@ -170,6 +176,10 @@ def parse_json_loose(text: str):
     return None, "no JSON object found"
 
 
+class BudgetExceeded(RuntimeError):
+    pass
+
+
 class OpenAICompatClient:
     """OpenAI-compatible chat client (cloud). Every request: guard -> cache -> HTTP.
 
@@ -180,8 +190,10 @@ class OpenAICompatClient:
 
     def __init__(self, base_url: str, api_key: str, cache: DiskCache | None, timeout: float = 300.0,
                  temperature: float = 0.0, seed: int = 42, extra_body: dict | None = None,
-                 max_retries: int = 4, session_id: str = "ses_epochmem", user_agent: str = "epochmem-bench/0.1",
-                 send_session_header: bool = False):
+                 max_retries: int = 8, session_id: str = "ses_epochmem", user_agent: str = "epochmem-bench/0.1",
+                 send_session_header: bool = False, max_concurrency: int = 2,
+                 prices: dict | None = None, budget_usd: float | None = None,
+                 extra_body_by_model: dict | None = None):
         check_url(base_url)
         self.base_url = base_url.rstrip("/")
         self.cache = cache
@@ -194,6 +206,19 @@ class OpenAICompatClient:
         self.max_retries = max_retries
         self.stats = CallStats()
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        self.usage_by_model: dict[str, dict] = {}
+        self._sem = threading.BoundedSemaphore(max_concurrency)
+        self._ulock = threading.Lock()
+        self.prices = prices or {}          # model -> [usd per 1M input, usd per 1M output]
+        self.budget_usd = budget_usd        # hard stop before any call once estimated spend reaches this
+        self.extra_body_by_model = extra_body_by_model or {}
+
+    def spent_usd(self) -> float:
+        tot = 0.0
+        for m, u in self.usage_by_model.items():
+            pin, pout = self.prices.get(m, (0.0, 0.0))
+            tot += u["prompt_tokens"] / 1e6 * pin + u["completion_tokens"] / 1e6 * pout
+        return tot
 
     def chat(self, model: str, messages: list[dict], *, schema: dict | None = None, max_tokens: int = 512,
              options: dict | None = None, attempt: int = 0) -> ChatResult:
@@ -202,21 +227,24 @@ class OpenAICompatClient:
             msgs[-1]["content"] += ("\n\nRespond with ONLY a JSON object matching this JSON schema, no prose:\n"
                                     + json.dumps(schema))
         body = {"model": model, "messages": msgs, "max_tokens": max_tokens, "temperature": self.temperature,
-                "seed": self.seed + attempt, **self.extra_body}
+                "seed": self.seed + attempt, **self.extra_body, **self.extra_body_by_model.get(model, {})}
         key = cache_key({"kind": "chat", "endpoint": self.base_url, **body})
         hit = self.cache.get(key) if self.cache is not None else None
         cached = hit is not None
         if hit is None:
+            if self.budget_usd is not None and self.spent_usd() >= self.budget_usd:
+                raise BudgetExceeded(f"estimated spend ${self.spent_usd():.2f} reached budget ${self.budget_usd:.2f}")
             url = f"{self.base_url}/chat/completions"
             check_url(url)
             last = None
             for i in range(self.max_retries + 1):
                 t0 = time.perf_counter()
-                try:
-                    r = self.http.post(url, json=body)
-                except httpx.HTTPError as e:
-                    last = repr(e)
-                else:
+                with self._sem:                 # bounded concurrency per process
+                    try:
+                        r = self.http.post(url, json=body)
+                    except httpx.HTTPError as e:
+                        r, last = None, repr(e)
+                if r is not None:
                     if r.status_code == 200:
                         hit = r.json()
                         hit["_wall_s"] = time.perf_counter() - t0
@@ -224,7 +252,14 @@ class OpenAICompatClient:
                     last = f"HTTP {r.status_code}: {r.text[:300]}"
                     if r.status_code not in (408, 409, 429, 500, 502, 503, 504):
                         raise RuntimeError(f"cloud call failed for {model}: {last}")
-                time.sleep(min(30, 2 ** i))   # backoff on transient errors only (never in accuracy logic)
+                    if r.status_code == 429:
+                        self.stats.rate_limited += 1
+                    print(f"[cloud] {model} HTTP {r.status_code} attempt={i} backoff={min(300, 2 ** (i + 1))}s",
+                          file=sys.stderr, flush=True)
+                else:
+                    print(f"[cloud] {model} transport error attempt={i}: {last[:120]}", file=sys.stderr, flush=True)
+                # exponential backoff on transient errors / 429s (rate-limit hygiene, not accuracy logic)
+                time.sleep(min(300, 2 ** (i + 1)))
             if hit is None:
                 raise RuntimeError(f"cloud call failed for {model} after retries: {last}")
             self.stats.add_chat(hit["_wall_s"])
@@ -233,8 +268,14 @@ class OpenAICompatClient:
         msg = (hit.get("choices") or [{}])[0].get("message", {}) or {}
         usage = hit.get("usage", {}) or {}
         if not cached:
-            self.usage["prompt_tokens"] += usage.get("prompt_tokens", 0) or 0
-            self.usage["completion_tokens"] += usage.get("completion_tokens", 0) or 0
+            pt, ct = usage.get("prompt_tokens", 0) or 0, usage.get("completion_tokens", 0) or 0
+            with self._ulock:
+                self.usage["prompt_tokens"] += pt
+                self.usage["completion_tokens"] += ct
+                u = self.usage_by_model.setdefault(model, {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0})
+                u["prompt_tokens"] += pt
+                u["completion_tokens"] += ct
+                u["calls"] += 1
         content = msg.get("content") or ""
         res = ChatResult(content=content, prompt_eval_count=usage.get("prompt_tokens"),
                          eval_count=usage.get("completion_tokens"), duration_s=float(hit.get("_wall_s", 0.0)),

@@ -13,7 +13,7 @@ from pathlib import Path
 from .cache import DiskCache
 from .config import Config, repo_path
 from .data.longmemeval import LongMemEvalDataset
-from .data.sampler import smoke_subset, stratified_sample
+from .data.sampler import heldout_sample, smoke_subset, stratified_sample
 from .data.stream import PreparedInstance, prepare
 from .eval.judge import Judge
 from .llm import OllamaClient
@@ -83,6 +83,8 @@ def enforce_provider_caps(cfg: Config, n_instances: int) -> None:
     for role in ("reader", "judge", "extractor"):
         prov = provider_of(str(cfg["models"][role]))
         cap = (providers.get(prov) or {}).get("max_instances") if prov else None
+        if prov == "opencode-go" and cfg.get("runtime", {}).get("allow_go_scale"):
+            cap = None                      # explicit user opt-in via --allow-go-scale
         if cap is not None and n_instances > cap:
             raise RuntimeError(f"provider {prov!r} is capped at {cap} instances (got {n_instances}); "
                                f"use a pay-per-token provider for large sweeps")
@@ -90,8 +92,18 @@ def enforce_provider_caps(cfg: Config, n_instances: int) -> None:
 
 def select_instances(cfg: Config, n_smoke: int | None) -> list[PreparedInstance]:
     d = cfg["dataset"]
+    if d.get("heldout_slice") and not n_smoke:
+        # precomputed held-out split (make_heldout_slice.py): same records, same order, small file
+        meta = json.loads(repo_path(d["heldout_slice"]).with_suffix(".meta.json").read_text(encoding="utf-8"))
+        insts = LongMemEvalDataset(repo_path(d["heldout_slice"]), expected_n=meta["n"]).load()
+        by = {i.qid: i for i in insts}
+        assert [q for q in meta["qids"]] == [i.qid for i in insts] or set(by) == set(meta["qids"])
+        return [prepare(by[q], d["cutoff_mode"]) for q in meta["qids"]]
     ds = LongMemEvalDataset(repo_path(d["path"]), expected_sha256=d["sha256"])
-    sample = stratified_sample(ds.load(), d["subset"], cfg["seed"])
+    if d.get("heldout"):
+        sample = heldout_sample(ds.load(), d["heldout"], d["subset"], cfg["seed"])
+    else:
+        sample = stratified_sample(ds.load(), d["subset"], cfg["seed"])
     if n_smoke:
         sample = smoke_subset(sample, n_smoke)
     return [prepare(i, d["cutoff_mode"]) for i in sample]
@@ -146,21 +158,23 @@ def run_instance(prep: PreparedInstance, ctx: Ctx, judge: Judge, run_id: str, ce
         sysobj = REGISTRY[system](ctx)
         t1 = time.perf_counter()
         out = sysobj.run(prep, ns, lag, p)
-        v = judge.judge(prep, out.answer)
+        v = judge.judge(prep, out.answer) if judge is not None else None
         ing = out.ingest
         row = {
             "row_key": row_key, "run_id": run_id, "qid": prep.inst.qid, "qtype": prep.inst.qtype,
             "is_abstention": prep.inst.is_abstention, "system": system, "lag": lag, "p_ooo": p,
             "cutoff_mode": prep.cutoff_mode_applied, "n_sessions": prep.n,
             "question": prep.inst.question, "gold": prep.inst.answer, "answer": out.answer,
-            "correct": v.correct, "abstained": v.abstained, "uses_superseded": v.uses_superseded,
-            "judge_parse_errors": v.judge_parse_errors,
+            "correct": v.correct if v else None, "abstained": v.abstained if v else None,
+            "uses_superseded": v.uses_superseded if v else None,
+            "judge_parse_errors": v.judge_parse_errors if v else None,
             "prompt_tokens": out.prompt_tokens, "server_prompt_tokens": out.server_prompt_tokens,
             "evidence_epochs": sorted(ev_epochs), "inflight_epochs": ing.inflight_epochs,
             "evidence_in_flight": latest_ev is not None and latest_ev in ing.inflight_epochs,
             "watermark": ing.watermark, "cas_rejections": ing.cas_rejections,
             "oocr_updated": ing.oocr_updated, "oocr_corrupted": ing.oocr_corrupted,
-            "missed_merge": ing.missed_merge, "reader_model": ctx.m["reader"], "judge_model": judge.model,
+            "missed_merge": ing.missed_merge, "reader_model": ctx.m["reader"],
+            "judge_model": judge.model if judge is not None else None,
             "corrupted_keys": ing.corrupted_keys,
             "retrieved": [{k: f[k] for k in ("entity_key", "source_epoch", "fact_text")} for f in out.retrieved],
             "extra_context": out.extra_context, "reader_cached": out.reader_cached,
@@ -178,7 +192,8 @@ def run_instance(prep: PreparedInstance, ctx: Ctx, judge: Judge, run_id: str, ce
     return written
 
 
-def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None, core: bool = False) -> Path:
+def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None, core: bool = False,
+        no_judge: bool = False) -> Path:
     run_dir = repo_path(cfg["runtime"]["runs_dir"]) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     writer = JsonlWriter(run_dir / "results.jsonl")
@@ -191,7 +206,11 @@ def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None
         with log_lock, log_path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
 
+    if no_judge:
+        cfg["models"]["judge"] = cfg["models"]["reader"] if "/" not in str(cfg["models"]["reader"]) else cfg["models"]["extractor"]
     ctx, judge = build_ctx(cfg, session_id=f"ses_epochmem_{run_id}")
+    if no_judge:
+        judge = None                 # verdicts are produced later by a deduplicated cross-run judge pass
     preps = select_instances(cfg, n_smoke)
     enforce_provider_caps(cfg, len(preps))
     cells = cells_for(cfg, systems, core=core)
@@ -217,6 +236,8 @@ def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None
              "cache_hits": ctx.client.cache.hits, "cache_misses": ctx.client.cache.misses,
              "live_chat_calls": ctx.client.stats.chat_calls, "live_chat_wall_s": round(ctx.client.stats.chat_wall_s, 1),
              "cloud_usage": ctx.client.cloud.usage if ctx.client.cloud else None,
+             "cloud_usage_by_model": {m: u for c in ctx.client.clouds.values() for m, u in c.usage_by_model.items()},
+             "cloud_rate_limited": sum(c.stats.rate_limited for c in ctx.client.clouds.values()),
              "cloud_live_calls": ctx.client.cloud.stats.chat_calls if ctx.client.cloud else 0}
     (run_dir / "stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
     log(f"finished: {json.dumps(stats)}")

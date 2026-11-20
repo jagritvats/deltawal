@@ -1,0 +1,92 @@
+# copy of m2_heldout.yaml with the opencode-zen block replaced for the judge-agreement check
+seed: 42
+
+dataset:
+  name: longmemeval_s
+  path: data/raw/longmemeval_s_cleaned.json
+  hf_repo: xiaowu0162/longmemeval-cleaned
+  hf_revision: 98d7416c24c778c2fee6e6f3006e7a073259d48f
+  filename: longmemeval_s_cleaned.json
+  sha256: d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442
+  size_bytes: 277383467
+  heldout_slice: data/raw/longmemeval_s_cleaned.heldout138.json   # precomputed held-out split (scripts/make_heldout_slice.py)
+  cutoff_mode: post_update        # post_update | full_haystack
+  heldout:                        # M2 held-out split: dev sample (subset below, same seed) is EXCLUDED
+    knowledge-update: all
+    abstention: all
+    temporal-reasoning: 52
+  subset:                         # dev sample definition (excluded from held-out)
+    knowledge-update: 12
+    temporal-reasoning: 4
+    abstention: 4
+
+models:
+  endpoint: http://localhost:11434
+  reader: gemma4:12b-it-qat
+  extractor: opencode-zen/glm-5.3-flash   # held-out extraction (dev used local gemma4; see report caveat)
+  judge: gemma4:12b-it-qat
+  embedder: qwen3-embedding:0.6b
+  embed_dim: 1024
+  query_instruction: "Instruct: Given a user question, retrieve relevant facts from conversation memory\nQuery: "
+  num_ctx: 16384
+  temperature: 0.0
+  think: false
+
+infra:
+  kafka_bootstrap: 127.0.0.1:19092
+  kafka_topic: memory.sessions
+  redis_url: redis://127.0.0.1:16379/0
+  wal_trim: true
+  pg_dsn: postgresql://mem:mem@127.0.0.1:15432/mem
+
+memory:
+  max_facts_per_session: 10
+  registry_max_keys: 150          # existing entity keys shown to the extractor
+  assistant_trunc_chars_extract: 300
+  top_k_facts: 12
+  registry_mode: commit_order     # p_ooo>0 cells: committed-only key registry (M2)
+
+systems:
+  b3_matched_token_budget: 1050   # B3_recency_matched*: whole-prompt budget matched to DeltaWAL (~1,045 at lag>=1)
+  b3_tail_turns: 8                # raw tail appended by B3_recency
+  b4_delta_top_m: 8               # max gated WAL turns injected by DeltaWAL
+  wal_sim_threshold: 0.35         # calibrated on the 20-question dev split (runs/calibration_m2_dev.json)
+  shadow_v2_threshold: 0.72       # v2 sentence-level, FROZEN by rule: max TP s.t. <=2% dev cells with a false mask (runs/calibration_m2v3_dev.json; was 0.70 before the injector fix)
+  shadow_threshold: 0.60          # calibrated on the 20-question dev split (runs/calibration_m2_dev.json)
+  raw_turn_user_chars: 2000
+  raw_turn_assistant_chars: 600
+
+grid:
+  systems: [B1_sync, B2_async, B3_recency, B3_recency_matched, B3_recency_matched_user, deltawal_prompt, deltawal_shadow_v2, deltawal_lazy]
+  lags: [0, 1, 3, 5]              # sessions held in flight behind the barrier
+  p_ooo: [0.0, 0.30]
+  p_ooo_lags: [1, 3]              # committed-only extraction orders needed by the held-out matrix              # straggler probability for commit reordering
+
+runtime:
+  workers: 2                      # instances processed concurrently
+  cache_path: .cache/llm_cache.sqlite
+  runs_dir: runs
+
+cloud:
+  providers:
+    opencode-go:                    # DEV ONLY (coding-agent ToS): hard-capped at the 20 dev questions
+      base_url: https://opencode.ai/inference/go/openai/v1
+      api_key_env: OPENCODE_API_KEY
+      session_header: true
+      max_instances: 20             # lifted only with --allow-go-scale
+      max_concurrency: 2
+    opencode-zen:                   # pay-as-you-go judge-candidate check (scripts/judge_agreement.py)
+      base_url: https://opencode.ai/inference/openai/v1
+      api_key_env: OPENCODE_API_KEY
+      max_concurrency: 8
+      budget_usd: 0.25              # per-process hard stop for this config's client
+      extra_body_by_model: {}
+      prices:                       # USD per 1M tokens [input, output]
+        qwen3.8-flash: [0.15, 0.47]
+        claude-haiku-5-5: [0.10, 0.50]
+    openai-compat:                  # pay-per-token OpenAI-compatible endpoint for held-out sweeps
+      base_url_env: CLOUD_BASE_URL  # e.g. a direct provider or router base URL ending in /v1
+      api_key_env: CLOUD_API_KEY
+  min_max_tokens: 2048            # floor for cloud calls (reasoning models spend tokens first)
+
+calibration_tag: heldout_unused           # calibration output file suffix (post fault-injector fix)

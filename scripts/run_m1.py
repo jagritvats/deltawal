@@ -21,6 +21,8 @@ def main() -> int:
     ap.add_argument("--core", action="store_true", help="lean core cells only (B1 lag0; async lag1/3 p0, lag1 p0.3)")
     ap.add_argument("--cells", default=None, help="restrict core async cells, e.g. '1:0,3:0' (lag:p_ooo)")
     ap.add_argument("--workers", type=int, default=None, help="instances processed concurrently")
+    ap.add_argument("--no-judge", action="store_true", help="defer judging to the deduplicated judge pass")
+    ap.add_argument("--allow-go-scale", action="store_true", help="explicitly lift the opencode-go instance cap")
     ap.add_argument("--allow-cloud", action="store_true", default=False,
                     help="permit non-localhost model endpoints (off for Milestone 1)")
     args = ap.parse_args()
@@ -32,14 +34,16 @@ def main() -> int:
         cfg["models"]["judge"] = args.judge
     if args.workers:
         cfg["runtime"]["workers"] = args.workers
+    cfg["runtime"]["allow_go_scale"] = bool(args.allow_go_scale)
     if args.cells:
         import epochmem.runner as R
         R.CORE_CELLS = [(int(a), float(b)) for a, b in (c.split(":") for c in args.cells.split(","))]
     systems = args.systems or cfg["grid"]["systems"]
-    run_dir = run(cfg, args.run_id, systems, n_smoke=args.smoke, core=args.core)
-    table = format_table(aggregate(load_rows(run_dir / "results.jsonl")))
-    (run_dir / "summary.txt").write_text(table + "\n", encoding="utf-8")
-    print("\n" + table)
+    run_dir = run(cfg, args.run_id, systems, n_smoke=args.smoke, core=args.core, no_judge=args.no_judge)
+    if not args.no_judge:
+        table = format_table(aggregate(load_rows(run_dir / "results.jsonl")))
+        (run_dir / "summary.txt").write_text(table + "\n", encoding="utf-8")
+        print("\n" + table)
     return 0
 
 
