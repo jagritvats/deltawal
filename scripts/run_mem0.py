@@ -290,6 +290,8 @@ def main() -> int:
     ap.add_argument("--budget-usd", type=float, default=None, help="override the opencode-zen per-process budget")
     ap.add_argument("--ingest-only", action="store_true", help="build Mem0 snapshots, no reader calls")
     ap.add_argument("--reingest-check", action="store_true", help="verify re-ingestion is fully cached")
+    ap.add_argument("--ingest-workers", type=int, default=1,
+                    help="with --ingest-only: questions ingested in parallel threads inside this one process")
     ap.add_argument("--no-judge", action="store_true", default=True, help="(always) rows are judged later by judge_all.py")
     ap.add_argument("--allow-cloud", action="store_true", default=False)
     args = ap.parse_args()
@@ -332,6 +334,50 @@ def main() -> int:
         f"{len(done)} rows already done")
     t0 = time.perf_counter()
     failures = 0
+    if args.ingest_only and args.ingest_workers > 1:
+        # In-process parallel ingestion (ONE local-Ollama job): one Mem0Backend per worker thread so that
+        # close_all() only closes that thread's stores; router + SQLite cache are shared and thread-safe.
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        tls, backends = threading.local(), []
+
+        def worker_be():
+            if not hasattr(tls, "be"):
+                tls.be = Mem0Backend(router, llm, m["embedder"], m["query_instruction"], m["embed_dim"],
+                                     repo_path(mem["store_dir"]) / f"{slug(llm)}_mem0-{mem['version']}",
+                                     user_chars=2000, asst_chars=cfg["memory"]["assistant_trunc_chars_extract"],
+                                     max_tokens=int(mem.get("internal_max_tokens", 2048)))
+                backends.append(tls.be)
+            return tls.be
+
+        def ingest_one(p):
+            b = worker_be()
+            try:
+                ingest_stage(b, f"{p.inst.qid}_A", p.stream[:-1], log)
+                ingest_stage(b, f"{p.inst.qid}_B", p.stream[-1:], log, base_ns=f"{p.inst.qid}_A")
+                log(f"[{p.inst.qid}] ingested")
+                return 0
+            except Exception as e:
+                import traceback
+                log(f"[{p.inst.qid}] FAILED {e!r}\n{traceback.format_exc()}")
+                return 1
+            finally:
+                b.close_all()
+
+        with ThreadPoolExecutor(args.ingest_workers) as ex:
+            failures = sum(ex.map(ingest_one, preps))
+        merged = {}
+        for b in backends:
+            for k, v in b.stats.snapshot().items():
+                merged[k] = merged.get(k, 0) + v if isinstance(v, (int, float)) else v
+        clouds = router.clouds
+        stats = {"wall_s": round(time.perf_counter() - t0, 1), "failures": failures, "mem0_internal": merged,
+                 "ingest_workers": args.ingest_workers,
+                 "cloud_usage_by_model": {mm: u for c in clouds.values() for mm, u in c.usage_by_model.items()},
+                 "cloud_spent_est_usd": round(sum(c.spent_usd() for c in clouds.values()), 4)}
+        (run_dir / "stats_ingest.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
+        log(f"finished ingest: {json.dumps({k: v for k, v in stats.items() if k != 'mem0_internal'})}")
+        return 1 if failures else 0
     for p in preps:
         try:
             if args.ingest_only:
