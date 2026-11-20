@@ -7,6 +7,7 @@ Both calls use JSON-schema constrained decoding with thinking disabled.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from ..data.stream import PreparedInstance
@@ -33,12 +34,46 @@ _ABS = ("I will give you an unanswerable question, an explanation, and a respons
         "the model correctly identifies the question as unanswerable. The model could say that the information "
         "is incomplete, or some other information is given but the asked information is not.")
 
+_PREF = ("I will give you a question, a rubric for desired personalized response, and a response from a model. "
+         "Answer yes if the response satisfies the desired response. Otherwise, answer no. The model does not need "
+         "to reflect all the points in the rubric. The response is correct as long as it recalls and utilizes the "
+         "user's personal information correctly.")
+
+
+_STATIC = ("The user's memory contains an earlier TRUE statement and a later FALSE statement that contradicts it. "
+           "I will give you a question, the reference answer (which states the correct value), and a response from a "
+           "model. Answer yes if the response's answer matches the correct value in the reference; it does not need "
+           "to mention that sources disagree. If the response answers with the other (false) value, answer no.")
+
+
+def memconflict_trap(inst) -> str | None:
+    """The value a MemConflict reader should NOT answer with: dynamic -> the superseded Before value;
+    static -> the newer FALSE statement (Point_B). Conditional conflicts have no single trap value."""
+    if not str(inst.qtype).startswith("memconflict-"):
+        return None
+    rec = (inst.meta or {}).get("conflict") or {}
+    if inst.qtype == "memconflict-dynamic" and isinstance(rec.get("update"), dict):
+        return f"Earlier (superseded) value: {json.dumps(rec['update'].get('Before'), ensure_ascii=False)}"
+    if inst.qtype == "memconflict-static" and isinstance(rec.get("point"), dict):
+        return f"Later FALSE statement (should not be believed): {rec['point'].get('Value')}"
+    return None
+
 
 def correctness_prompt(prep: PreparedInstance, response: str) -> str:
     inst = prep.inst
+    if inst.qtype == "memconflict-static":
+        return (f"{_STATIC}\n\nQuestion: {inst.question}\n\nReference: {inst.answer}\n\nModel Response: {response}\n\n"
+                'Is the model response correct? Reply as JSON {"correct": true|false}.')
+    if inst.qtype == "memconflict-dynamic":
+        return (f"{_BASE}{_KU}\n\nQuestion: {inst.question}\n\nCorrect Answer: {inst.answer}\n\nModel Response: {response}\n\n"
+                'Is the model response correct? Reply as JSON {"correct": true|false}.')
     if inst.is_abstention:
         return (f"{_ABS}\n\nQuestion: {inst.question}\n\nExplanation: {inst.answer}\n\nModel Response: {response}\n\n"
                 'Does the model correctly identify the question as unanswerable? Reply as JSON {"correct": true|false}.')
+    if inst.qtype == "single-session-preference":
+        # LongMemEval's preference rubric: gold answers are rubric descriptions, not answer strings
+        return (f"{_PREF}\n\nQuestion: {inst.question}\n\nRubric: {inst.answer}\n\nModel Response: {response}\n\n"
+                'Is the model response correct? Reply as JSON {"correct": true|false}.')
     rubric = _BASE + (_TEMPORAL if inst.qtype == "temporal-reasoning" else "") + (
         _KU if inst.qtype == "knowledge-update" else "")
     return (f"{rubric}\n\nQuestion: {inst.question}\n\nCorrect Answer: {inst.answer}\n\nModel Response: {response}\n\n"
@@ -48,6 +83,9 @@ def correctness_prompt(prep: PreparedInstance, response: str) -> str:
 def behavior_prompt(prep: PreparedInstance, response: str) -> str:
     inst = prep.inst
     old = prep.superseded_evidence() if inst.qtype == "knowledge-update" and not inst.is_abstention else []
+    trap = memconflict_trap(inst)
+    if trap:
+        old = [trap]
     old_block = "\n".join(old) if old else "N/A"
     return (
         "Classify a model's response to a question about the user's past conversations.\n\n"

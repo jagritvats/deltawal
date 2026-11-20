@@ -13,6 +13,7 @@ from pathlib import Path
 from .cache import DiskCache
 from .config import Config, repo_path
 from .data.longmemeval import LongMemEvalDataset
+from .data.memconflict import MemConflictDataset
 from .data.sampler import heldout_sample, smoke_subset, stratified_sample
 from .data.stream import PreparedInstance, prepare
 from .eval.judge import Judge
@@ -92,6 +93,14 @@ def enforce_provider_caps(cfg: Config, n_instances: int) -> None:
 
 def select_instances(cfg: Config, n_smoke: int | None) -> list[PreparedInstance]:
     d = cfg["dataset"]
+    if d.get("name") == "memconflict":
+        # precomputed eval split (scripts/make_memconflict_split.py); qids + order come from its .meta.json
+        split = repo_path(d["split"])
+        meta = json.loads(split.with_suffix(".meta.json").read_text(encoding="utf-8"))
+        insts = MemConflictDataset(split, qids=meta["qids"]).load()
+        if n_smoke:
+            insts = smoke_subset(insts, n_smoke)
+        return [prepare(i, d["cutoff_mode"]) for i in insts]
     if d.get("heldout_slice") and not n_smoke:
         # precomputed held-out split (make_heldout_slice.py): same records, same order, small file
         meta = json.loads(repo_path(d["heldout_slice"]).with_suffix(".meta.json").read_text(encoding="utf-8"))
