@@ -99,6 +99,16 @@ def main() -> int:
     print(out)
     (repo_path("runs") / "sensitivity_shadow_heldout.txt").write_text(out, encoding="utf-8")
     (repo_path("runs") / "sensitivity_heldout_usage.json").write_text(json.dumps(usage), encoding="utf-8")
+    rerun_keys = {(t, r["row_key"]) for t, rs in reruns.items() for r in rs}
+    with open(repo_path("runs") / "sensitivity_shadow_heldout_rows.jsonl", "w", encoding="utf-8") as fh:
+        for t in THRESHOLDS:
+            for key in sorted(results[t]):
+                v = results[t][key]
+                fh.write(json.dumps({"threshold": t, "row_key": key, "qid": v["qid"], "qtype": v["qtype"],
+                                     "is_abstention": v["is_abstention"], "lag": v["lag"], "p_ooo": v["p_ooo"],
+                                     "question": v["question"], "correct": bool(v["correct"]),
+                                     "uses_superseded": bool(v["uses_superseded"]),
+                                     "rerun": (t, key) in rerun_keys}) + "\n")
     return 0
 
 

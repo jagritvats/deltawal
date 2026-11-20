@@ -5,3 +5,4 @@
 __pycache__/
 *.pyc
 .env
+/paper/check_assets.pdf

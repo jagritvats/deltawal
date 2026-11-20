@@ -1,0 +1,25 @@
+% Compile-check for the generated tables at TMLR text width (6.5in). Used by reproduce_assets.sh.
+\documentclass[10pt]{article}
+\usepackage[letterpaper,textwidth=6.5in,textheight=9in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\begin{document}
+\input{tables/tab1_main_138}
+\clearpage
+\input{tables/tab2_history_ablation}
+\clearpage
+\input{tables/tab3_regression_60}
+\clearpage
+\input{tables/tab4_mem0_60}
+\clearpage
+\input{tables/tab5_memconflict_90}
+\clearpage
+\input{tables/tab6_latency}
+\clearpage
+\begin{figure*}[t]\centering\includegraphics[width=\textwidth]{figures/fig1_architecture.pdf}\caption{fig1}\end{figure*}
+\begin{figure*}[t]\centering\includegraphics[width=\textwidth]{figures/fig2_pareto.pdf}\caption{fig2}\end{figure*}
+\clearpage
+\begin{figure*}[t]\centering\includegraphics[width=\textwidth]{figures/fig3_destructive_symmetry.pdf}\caption{fig3}\end{figure*}
+\begin{figure*}[t]\centering\includegraphics[width=\textwidth]{figures/fig4_external.pdf}\caption{fig4}\end{figure*}
+\end{document}
