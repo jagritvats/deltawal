@@ -112,6 +112,10 @@ class MemorySystem(ABC):
     def __init__(self, ctx: Ctx):
         self.ctx = ctx
 
+    @property
+    def store(self):
+        return self.ctx.store
+
     # ------------------------------------------------------------------ ingest
     def ingest(self, prep: PreparedInstance, ns: str, lag: int, p_ooo: float) -> IngestResult:
         ctx = self.ctx
@@ -123,7 +127,7 @@ class MemorySystem(ABC):
             prep, order if (registry_mode == "commit_order" and order is not None) else None)
         all_facts = [f for e in sorted(facts_by_epoch) for f in facts_by_epoch[e]]
         embs = dict(zip([id(f) for f in all_facts], ctx.embed_docs([f.doc_text() for f in all_facts])))
-        ctx.store.reset(ns)
+        self.store.reset(ns)
         if self.use_wal:
             ctx.wal.reset(ns)
 
@@ -150,7 +154,7 @@ class MemorySystem(ABC):
         for idx in applied_idx:
             epoch = prep.stream[idx].epoch
             for f in facts_by_epoch.get(epoch, []):
-                ok = ctx.store.upsert(ns, f, embs[id(f)], self.policy)
+                ok = self.store.upsert(ns, f, embs[id(f)], self.policy)
                 rejections += int(not ok)
                 applied_facts.append(f)
             if self.use_wal:
@@ -158,7 +162,7 @@ class MemorySystem(ABC):
         if self.use_wal:
             assert wm is None or wm == low_watermark({prep.stream[i].epoch for i in applied_idx})
             wm = ctx.wal.committed(ns)
-        n_up, n_cor, keys = compute_oocr(applied_facts, ctx.store.key_epochs(ns))
+        n_up, n_cor, keys = compute_oocr(applied_facts, self.store.key_epochs(ns))
         ev = prep.evidence_epochs()
         missed = None
         if len(ev) >= 2:   # update entity split across different keys (no key shared with older evidence)
@@ -174,7 +178,7 @@ class MemorySystem(ABC):
 
     # ------------------------------------------------------------------ read
     def retrieve_facts(self, ns: str, qemb: list[float]) -> list[dict]:
-        return self.ctx.store.search(ns, qemb, self.ctx.cfg["memory"]["top_k_facts"])
+        return self.store.search(ns, qemb, self.ctx.cfg["memory"]["top_k_facts"])
 
     @abstractmethod
     def build_messages(self, prep: PreparedInstance, ns: str, ing: IngestResult,

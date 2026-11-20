@@ -41,22 +41,45 @@ UPSERT_CAS = UPSERT_LWW + "\nWHERE EXCLUDED.source_epoch > {table}.source_epoch"
 
 POLICIES = {"lww": UPSERT_LWW, "cas": UPSERT_CAS}
 
+# Append-only, non-destructive: one row per (user_id, entity_key, source_epoch); nothing is overwritten.
+SCHEMA_VERSIONED = """
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE IF NOT EXISTS {table} (
+    user_id      TEXT NOT NULL,
+    entity_key   TEXT NOT NULL,
+    fact_text    TEXT NOT NULL,
+    source_epoch INTEGER NOT NULL,
+    event_date   TEXT,
+    session_date TEXT,
+    embedding    vector({dim}) NOT NULL,
+    PRIMARY KEY (user_id, entity_key, source_epoch)
+);
+"""
+INSERT_VERSIONED = """
+INSERT INTO {table} (user_id, entity_key, fact_text, source_epoch, event_date, session_date, embedding)
+VALUES (%s, %s, %s, %s, %s, %s, %s::vector)
+ON CONFLICT (user_id, entity_key, source_epoch) DO NOTHING
+"""
+
 
 def vec_literal(v: list[float]) -> str:
     return "[" + ",".join(f"{x:.7g}" for x in v) + "]"
 
 
 class FactStore:
-    def __init__(self, dsn: str, dim: int, table: str = "facts"):
+    def __init__(self, dsn: str, dim: int, table: str = "facts", versioned: bool = False):
         if not table.isidentifier():
             raise ValueError(table)
+        self.versioned = versioned
         self.dsn = dsn
         self.dim = dim
         self.table = table
         self._sql = {k: v.format(table=table) for k, v in POLICIES.items()}
+        if versioned:
+            self._sql = {k: INSERT_VERSIONED.format(table=table) for k in ("lww", "cas", "append")}
         self._local = threading.local()
         with psycopg.connect(dsn, autocommit=True) as c:
-            c.execute(SCHEMA.format(dim=dim, table=table))
+            c.execute((SCHEMA_VERSIONED if versioned else SCHEMA).format(dim=dim, table=table))
 
     @property
     def conn(self) -> psycopg.Connection:
@@ -95,6 +118,6 @@ class FactStore:
 
     def key_epochs(self, user_id: str) -> dict[str, int]:
         rows = self.conn.execute(
-            f"SELECT entity_key, source_epoch FROM {self.table} WHERE user_id = %s", (user_id,)
+            f"SELECT entity_key, MAX(source_epoch) FROM {self.table} WHERE user_id = %s GROUP BY entity_key", (user_id,)
         ).fetchall()
         return {r[0]: r[1] for r in rows}

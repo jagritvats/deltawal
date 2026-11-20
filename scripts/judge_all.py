@@ -54,7 +54,8 @@ def main() -> int:
     ap.add_argument("--runs", nargs="+", required=True)
     ap.add_argument("--judge", default="opencode-go/qwen4-max")
     ap.add_argument("--workers", type=int, default=2)
-    ap.add_argument("--audit-n", type=int, default=50)
+    ap.add_argument("--audit-n", type=int, default=50, help="0 = do not (re)write the audit CSV")
+    ap.add_argument("--summary-name", default="judge_all_summary.json")
     ap.add_argument("--allow-cloud", action="store_true", default=False)
     ap.add_argument("--allow-go-scale", action="store_true", default=False)
     args = ap.parse_args()
@@ -82,6 +83,13 @@ def main() -> int:
                 v = verdicts[(row["qid"], normalize_answer(row["answer"]))]
                 fh.write(json.dumps({**row, **v, "judge_model": args.judge}, ensure_ascii=False) + "\n")
 
+    if args.audit_n <= 0:
+        usage = {m: u for c in clouds.values() for m, u in c.usage_by_model.items()}
+        summary = {"rows": n_rows, "unique_pairs": len(pairs), "judge": args.judge,
+                   "parse_errors": sum(v["judge_parse_errors"] for v in verdicts.values()), "usage_by_model": usage}
+        (repo_path("runs") / args.summary_name).write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        print(json.dumps(summary, indent=2))
+        return 0
     # stratified human audit: stratum x verdict, over unique pairs
     rng = random.Random(cfg["seed"])
     cells: dict = {}
@@ -112,7 +120,7 @@ def main() -> int:
     summary = {"rows": n_rows, "unique_pairs": len(pairs), "judge": args.judge,
                "parse_errors": sum(v["judge_parse_errors"] for v in verdicts.values()),
                "usage_by_model": usage, "audit_csv": str(out), "audit_rows": len(picked)}
-    (repo_path("runs") / "judge_all_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (repo_path("runs") / args.summary_name).write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     return 0
 

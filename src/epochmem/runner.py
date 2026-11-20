@@ -185,7 +185,7 @@ def run_instance(prep: PreparedInstance, ctx: Ctx, judge: Judge, run_id: str, ce
         }
         writer.append(row)
         done.add(row_key)
-        ctx.store.reset(ns)          # keep Postgres/Redis small; rows already hold everything needed
+        sysobj.store.reset(ns)       # keep Postgres/Redis small; rows already hold everything needed
         ctx.wal.reset(ns)
         written += 1
     log(f"[{prep.inst.qid}] done: {written} rows in {time.perf_counter() - t0:.1f}s")

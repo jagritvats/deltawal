@@ -88,3 +88,19 @@ def test_in_order_lww_has_no_corruption(store):
         store.upsert(ns, f, E, "lww")
         applied_facts.append(f)
     assert compute_oocr(applied_facts, _stored(store, ns))[1] == 0
+
+
+def test_versioned_store_is_append_only():
+    from epochmem.config import load_config
+    from epochmem.store.pg import FactStore
+    cfg = load_config("configs/m1_local.yaml")
+    with psycopg.connect(cfg["infra"]["pg_dsn"], autocommit=True) as c:
+        c.execute("DROP TABLE IF EXISTS facts_vtest")
+    s = FactStore(cfg["infra"]["pg_dsn"], dim=4, table="facts_vtest", versioned=True)
+    ns = f"t-{uuid.uuid4()}"
+    for e in (5, 3, 5, 7):
+        s.upsert(ns, _fact("user.car", e), E, "append")
+    rows = s.conn.execute("SELECT source_epoch FROM facts_vtest WHERE user_id=%s ORDER BY 1", (ns,)).fetchall()
+    assert [r[0] for r in rows] == [3, 5, 7]                 # every version kept, duplicates ignored
+    assert s.key_epochs(ns) == {"user.car": 7}               # latest version per key
+    s.conn.execute("DROP TABLE IF EXISTS facts_vtest")
