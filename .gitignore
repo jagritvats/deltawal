@@ -1,6 +1,6 @@
-data/
-runs/
-.cache/
+/data/
+/runs/
+/.cache/
 .venv/
 __pycache__/
 *.pyc
