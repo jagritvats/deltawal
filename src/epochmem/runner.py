@@ -54,18 +54,25 @@ class JsonlWriter:
         self.append(row, self.path.parent / name)
 
 
-def build_ctx(cfg: Config) -> tuple[Ctx, Judge]:
+def build_ctx(cfg: Config, session_id: str = "ses_epochmem") -> tuple[Ctx, Judge]:
+    """Local Ollama client, plus a guard-checked cloud client when any configured model is
+    `opencode-go/*` (raises CloudCallBlocked unless --allow-cloud)."""
+    from .config import make_cloud_client
+    from .llm import CLOUD_PREFIX, ModelRouter
     m, infra, mem = cfg["models"], cfg["infra"], cfg["memory"]
     cache = DiskCache(repo_path(cfg["runtime"]["cache_path"]))
-    client = OllamaClient(m["endpoint"], cache, num_ctx=m["num_ctx"], temperature=m["temperature"],
-                          seed=cfg["seed"], think=m["think"])
+    local = OllamaClient(m["endpoint"], cache, num_ctx=m["num_ctx"], temperature=m["temperature"],
+                         seed=cfg["seed"], think=m["think"])
+    needs_cloud = any(str(m[r]).startswith(CLOUD_PREFIX) for r in ("reader", "judge", "extractor"))
+    cloud = make_cloud_client(cfg, cache, session_id=session_id) if needs_cloud else None
+    client = ModelRouter(local, cloud, min_cloud_max_tokens=(cfg.get("cloud") or {}).get("min_max_tokens", 2048))
     extractor = FactExtractor(client, m["extractor"], max_facts=mem["max_facts_per_session"],
                               registry_max_keys=mem["registry_max_keys"],
                               asst_chars=mem["assistant_trunc_chars_extract"])
     bus = SessionBus(infra["kafka_bootstrap"], infra["kafka_topic"])
     bus.ensure_topic()
     ctx = Ctx(cfg=cfg, client=client, extractor=extractor, store=FactStore(infra["pg_dsn"], m["embed_dim"]),
-              wal=RedisWAL(infra["redis_url"]), bus=bus, seed=cfg["seed"])
+              wal=RedisWAL(infra["redis_url"], trim=infra.get("wal_trim", True), dim=m["embed_dim"]), bus=bus, seed=cfg["seed"])
     return ctx, Judge(client, m["judge"])
 
 
@@ -78,9 +85,17 @@ def select_instances(cfg: Config, n_smoke: int | None) -> list[PreparedInstance]
     return [prepare(i, d["cutoff_mode"]) for i in sample]
 
 
-def cells_for(cfg: Config, systems: list[str]) -> list[tuple[str, int, float]]:
+CORE_CELLS = [(1, 0.0), (3, 0.0), (1, 0.30)]
+
+
+def cells_for(cfg: Config, systems: list[str], core: bool = False) -> list[tuple[str, int, float]]:
+    """Full grid, or the lean core subset: B1 at lag 0 and (lag, p_ooo) in CORE_CELLS for async systems."""
     g = cfg["grid"]
     out = []
+    if core:
+        for s in systems:
+            out.extend([(s, 0, 0.0)] if REGISTRY[s].write_mode == "sync" else [(s, l, p) for l, p in CORE_CELLS])
+        return out
     for s in systems:
         if REGISTRY[s].write_mode == "sync":
             out.append((s, 0, 0.0))
@@ -133,19 +148,24 @@ def run_instance(prep: PreparedInstance, ctx: Ctx, judge: Judge, run_id: str, ce
             "evidence_in_flight": latest_ev is not None and latest_ev in ing.inflight_epochs,
             "watermark": ing.watermark, "cas_rejections": ing.cas_rejections,
             "oocr_updated": ing.oocr_updated, "oocr_corrupted": ing.oocr_corrupted,
+            "missed_merge": ing.missed_merge, "reader_model": ctx.m["reader"], "judge_model": judge.model,
             "corrupted_keys": ing.corrupted_keys,
             "retrieved": [{k: f[k] for k in ("entity_key", "source_epoch", "fact_text")} for f in out.retrieved],
             "extra_context": out.extra_context, "reader_cached": out.reader_cached,
+            "read_path_ms": out.read_path_ms, "read_llm_ms": out.read_llm_ms, "read_diag": out.read_diag,
+            "n_suppressed": len(out.read_diag.get("suppressed", [])),
             "cell_wall_s": round(time.perf_counter() - t1, 3),
         }
         writer.append(row)
         done.add(row_key)
+        ctx.store.reset(ns)          # keep Postgres/Redis small; rows already hold everything needed
+        ctx.wal.reset(ns)
         written += 1
     log(f"[{prep.inst.qid}] done: {written} rows in {time.perf_counter() - t0:.1f}s")
     return written
 
 
-def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None) -> Path:
+def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None, core: bool = False) -> Path:
     run_dir = repo_path(cfg["runtime"]["runs_dir"]) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     writer = JsonlWriter(run_dir / "results.jsonl")
@@ -158,9 +178,9 @@ def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None
         with log_lock, log_path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
 
-    ctx, judge = build_ctx(cfg)
+    ctx, judge = build_ctx(cfg, session_id=f"ses_epochmem_{run_id}")
     preps = select_instances(cfg, n_smoke)
-    cells = cells_for(cfg, systems)
+    cells = cells_for(cfg, systems, core=core)
     done = writer.done_keys()
     (run_dir / "manifest.json").write_text(json.dumps({
         "run_id": run_id, "seed": cfg["seed"], "models": cfg["models"], "grid": cfg["grid"],
@@ -181,7 +201,9 @@ def run(cfg: Config, run_id: str, systems: list[str], n_smoke: int | None = None
     st = ctx.extractor.stats
     stats = {"wall_s": round(time.perf_counter() - t0, 1), "extraction": asdict(st),
              "cache_hits": ctx.client.cache.hits, "cache_misses": ctx.client.cache.misses,
-             "live_chat_calls": ctx.client.stats.chat_calls, "live_chat_wall_s": round(ctx.client.stats.chat_wall_s, 1)}
+             "live_chat_calls": ctx.client.stats.chat_calls, "live_chat_wall_s": round(ctx.client.stats.chat_wall_s, 1),
+             "cloud_usage": ctx.client.cloud.usage if ctx.client.cloud else None,
+             "cloud_live_calls": ctx.client.cloud.stats.chat_calls if ctx.client.cloud else 0}
     (run_dir / "stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
     log(f"finished: {json.dumps(stats)}")
     return run_dir

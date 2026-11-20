@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import threading
 
+import numpy as np
 import psycopg
 
 from ..memory.extract import Fact
@@ -76,14 +77,21 @@ class FactStore:
         )
         return cur.rowcount == 1  # False when the CAS fence rejected the write
 
-    def search(self, user_id: str, qemb: list[float], k: int) -> list[dict]:
+    def search(self, user_id: str, qemb: list[float], k: int, with_embedding: bool = False) -> list[dict]:
         rows = self.conn.execute(
             "SELECT entity_key, fact_text, source_epoch, event_date, session_date, "
-            f"embedding <=> %s::vector AS dist FROM {self.table} WHERE user_id = %s ORDER BY dist LIMIT %s",
+            f"embedding <=> %s::vector AS dist, embedding::text FROM {self.table} WHERE user_id = %s "
+            "ORDER BY dist LIMIT %s",
             (vec_literal(qemb), user_id, k),
         ).fetchall()
-        return [dict(entity_key=r[0], fact_text=r[1], source_epoch=r[2], event_date=r[3],
-                     session_date=r[4], dist=float(r[5])) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(entity_key=r[0], fact_text=r[1], source_epoch=r[2], event_date=r[3],
+                     session_date=r[4], dist=float(r[5]))
+            if with_embedding:
+                d["embedding"] = np.array(r[6][1:-1].split(","), dtype=np.float32)
+            out.append(d)
+        return out
 
     def key_epochs(self, user_id: str) -> dict[str, int]:
         rows = self.conn.execute(

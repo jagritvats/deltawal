@@ -104,18 +104,26 @@ class FactExtractor:
         self.user_chars = user_chars
         self.asst_chars = asst_chars
         self._memo: dict[tuple[str, int], dict[int, list[Fact]]] = {}
+        self.durations: dict[tuple[str, int], float] = {}   # (qid, epoch) -> live wall s of that extraction
         self._lock = threading.Lock()
         self.stats = ExtractionStats()
 
-    def extract_instance(self, prep: PreparedInstance) -> dict[int, list[Fact]]:
-        memo_key = (prep.inst.qid, prep.n)
+    def extract_instance(self, prep: PreparedInstance, order: list[int] | None = None) -> dict[int, list[Fact]]:
+        """Extract every session. `order` (0-based stream indices) is the worker commit order:
+        each session's key registry then contains ONLY keys from sessions committed before it
+        (committed-only registry; realistic for reordered/concurrent workers). order=None means
+        chronological, which is also what a sequential in-order worker sees."""
+        if order is not None and list(order) == list(range(prep.n)):
+            order = None
+        memo_key = (prep.inst.qid, prep.n, tuple(order) if order is not None else None)
         with self._lock:
             if memo_key in self._memo:
                 return self._memo[memo_key]
-        registry: dict[str, int] = {}   # key -> last epoch seen (recency order for the prompt)
+        registry: dict[str, int] = {}   # key -> processing step when last written (recency order)
         out: dict[int, list[Fact]] = {}
         sys_prompt = SYSTEM_PROMPT.format(max_facts=self.max_facts)
-        for ss in prep.stream:
+        seq = prep.stream if order is None else [prep.stream[i] for i in order]
+        for step, ss in enumerate(seq, start=1):
             recent = sorted(registry, key=lambda k: -registry[k])[: self.registry_max_keys]
             user_msg = (
                 "EXISTING KEYS:\n" + ("\n".join(sorted(recent)) if recent else "(none)") + "\n\n"
@@ -127,6 +135,7 @@ class FactExtractor:
                 schema=FACT_SCHEMA, max_tokens=1200,
             )
             with self._lock:
+                self.durations[(prep.inst.qid, ss.epoch)] = res.duration_s
                 self.stats.calls += 1
                 self.stats.retries += attempts - 1
                 self.stats.cached += int(res.cached)
@@ -146,7 +155,7 @@ class FactExtractor:
                 )
             out[ss.epoch] = list(facts_by_key.values())
             for k in facts_by_key:
-                registry[k] = ss.epoch
+                registry[k] = step
             with self._lock:
                 self.stats.facts += len(facts_by_key)
         with self._lock:

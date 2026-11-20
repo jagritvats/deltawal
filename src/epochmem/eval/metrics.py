@@ -5,7 +5,8 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-SYSTEM_ORDER = ["B1_sync", "B2_async", "B3_recency", "B4_epoch_wal"]
+SYSTEM_ORDER = ["B1_sync", "B2_async", "B3_recency", "B4_epoch_wal", "deltawal_prompt", "deltawal_shadow",
+                "deltawal_shadow_v2", "deltawal_lazy"]
 
 
 def load_rows(path: Path) -> list[dict]:
@@ -47,9 +48,20 @@ def aggregate(rows: list[dict]) -> list[dict]:
             "oocr": (cor / upd) if upd else float("nan"),
             "oocr_updated": upd,
             "tokens": _mean(r["prompt_tokens"] for r in rs),
+            "read_ms": _median([r.get("read_path_ms", 0.0) + r.get("read_llm_ms", 0.0) for r in rs]),
+            "suppressed": _mean(r.get("n_suppressed", 0) for r in rs),
+            "missed_merge": _mean(r["missed_merge"] for r in ku if r.get("missed_merge") is not None),
         })
     out.sort(key=lambda d: (SYSTEM_ORDER.index(d["system"]) if d["system"] in SYSTEM_ORDER else 99, d["p_ooo"], d["lag"]))
     return out
+
+
+def _median(xs):
+    xs = sorted(xs)
+    if not xs:
+        return float("nan")
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
 
 
 def _f(x, pct=True):
@@ -60,7 +72,7 @@ def _f(x, pct=True):
 
 def format_table(agg: list[dict]) -> str:
     hdr = (f"{'system':<14}{'p_ooo':>6}{'lag':>5}{'n':>4} | {'Acc':>6}{'Acc-KU':>8}{'Acc-TR':>8}{'Acc-Abs':>8} | "
-           f"{'CWR':>6}{'SRR-KU':>8}{'SRR-KU*':>8} | {'OOCR':>6}{'#upd':>6} | {'tokens':>7}")
+           f"{'CWR':>6}{'SRR-KU':>8}{'SRR-KU*':>8} | {'OOCR':>6}{'#upd':>6} | {'tokens':>7}{'readms':>8}{'#sup':>6}{'MissM':>7}")
     lines = [hdr, "-" * len(hdr)]
     prev = None
     for d in agg:
@@ -70,11 +82,13 @@ def format_table(agg: list[dict]) -> str:
         lines.append(
             f"{d['system']:<14}{d['p_ooo']:>6.2f}{d['lag']:>5}{d['n']:>4} | {_f(d['acc']):>6}{_f(d['acc_ku']):>8}"
             f"{_f(d['acc_tr']):>8}{_f(d['acc_abs']):>8} | {_f(d['cwr']):>6}{_f(d['srr_ku']):>8}"
-            f"{_f(d['srr_ku_inflight']):>8} | {_f(d['oocr']):>6}{d['oocr_updated']:>6} | {_f(d['tokens'], False):>7}"
+            f"{_f(d['srr_ku_inflight']):>8} | {_f(d['oocr']):>6}{d['oocr_updated']:>6} | {_f(d['tokens'], False):>7}{d['read_ms']:>8.1f}{d['suppressed']:>6.2f}{_f(d['missed_merge']):>7}"
         )
     lines.append("")
     lines.append("Acc = judge accuracy; CWR = confident-wrong rate (wrong & not abstained); SRR-KU = stale-read rate on "
                  "knowledge-update (wrong & returned the superseded value); SRR-KU* = same, restricted to rows whose "
                  "update evidence was in flight; OOCR = out-of-order corruption rate over updated entity keys; "
-                 "tokens = mean reader prompt tokens (o200k).")
+                 "tokens = mean reader prompt tokens (o200k); readms = median read-path ms excluding reader decode (incl. "
+                 "query-time LLM for lazy); #sup = mean committed facts masked per query; MissM = KU missed-merge rate "
+                 "(update entity split across two different keys).")
     return "\n".join(lines)
