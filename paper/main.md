@@ -90,7 +90,7 @@ The extractor is glm-5.3-flash, run once per session. It sees user turns in full
 
 #### Judge and statistics.
 
-One judge, qwen3.8-flash, grades every answer in the paper with the per-type LongMemEval rubric, in the LLM-as-a-judge setup of Zheng et al. (2023). A second call labels abstention and, for KU questions, use of the superseded value, which gives the stale-read rate. Against qwen4-max on 654 verdict pairs, Cohen’s $\kappa$ is 0.967 for correctness and 0.978 for stale reads. A second judge from another model family, claude-haiku-5-5, re-graded every answer with the same prompts and agrees on 97.8% of correctness verdicts ($\kappa=0.949$; 0.985 for stale reads; Table 10); every comparison we report keeps its direction under it. Intervals are 95% percentile bootstrap intervals over questions (2000 resamples); pooled cells resample questions as clusters. Paired comparisons give the questions won and lost, an exact McNemar test per reader, and, pooled over readers, a sign-flip permutation test with the question as the unit.
+One judge, qwen3.8-flash, grades every answer in the paper with the per-type LongMemEval rubric, in the LLM-as-a-judge setup of Zheng et al. (2023). A second call labels abstention and, for KU questions, use of the superseded value, which gives the stale-read rate. Against qwen4-max on 654 verdict pairs, Cohen’s $\kappa$ is 0.967 for correctness and 0.978 for stale reads. A second judge from another model family, claude-haiku-5-5, re-graded every answer with the same prompts and agrees on 97.8% of correctness verdicts ($\kappa=0.949$; 0.985 for stale reads; Table 10); every comparison we report keeps its direction under it. One author labelled a 50-row check sheet, stratified by question type and judge verdict (38 distinct questions), blind to system identity and judge labels, followed by a rule-based consistency check that does not use judge labels. Agreement with the judge is 96.0% \[90.0, 100.0\] for correctness ($\kappa=0.920$ \[0.79, 1.00\]), 96.0% \[90.0, 100.0\] for abstention ($\kappa=0.911$ \[0.77, 1.00\]) and 94.1% \[82.3, 100.0\] for stale reads ($\kappa=0.821$ \[0.00, 1.00\]; $n=17$ KU rows, 4 human-labelled positives). Intervals are 95% percentile bootstrap intervals over questions (2000 resamples); pooled cells resample questions as clusters. Paired comparisons give the questions won and lost, an exact McNemar test per reader, and, pooled over readers, a sign-flip permutation test with the question as the unit.
 
 ## 3.2 Main results
 
@@ -250,7 +250,7 @@ Read-your-writes is one of the session guarantees for weakly consistent replicat
 
 #### Evidence.
 
-Each cell is one greedy run; intervals capture question sampling only. The stream ends right after the update, so the staleness rates are conditional on the update being in flight, a worst case rather than a deployment rate. qwen3.8-flash grades everything; judge validation spans three model families (a larger qwen judge, claude-haiku-5-5 on every answer, and a GPT-family model on a 50-row check sheet), but no human has graded the check sheet. KU-past cells have 13 questions and the regression and MemConflict strata are small; non-significant paired differences are reported as no effect.
+Each cell is one greedy run; intervals capture question sampling only. The stream ends right after the update, so the staleness rates are conditional on the update being in flight, a worst case rather than a deployment rate. qwen3.8-flash grades everything; judge validation spans three model families (a larger qwen judge, claude-haiku-5-5 on every answer, and a GPT-family model on a 50-row check sheet), and the human check is a single-author blind audit of that sheet: stale reads rest on only 17 KU rows, and its 8 failing abstention rows cover only 2 distinct questions. KU-past cells have 13 questions and the regression and MemConflict strata are small; non-significant paired differences are reported as no effect.
 
 #### Models and data.
 
@@ -487,9 +487,7 @@ To check the judge’s static rubric, a GPT-family model labelled the answers of
 
 All prompts below are rendered from the code that produced the results; placeholders are in angle brackets.
 
-#### Reader prompt (DeltaWAL variants).
-
-Baselines use the same system prompt without the precedence paragraph and list facts as `- (date) key: fact`; at lag 0 DeltaWAL-Versioned has no `NEWER MESSAGE` lines.
+**Reader prompt (DeltaWAL variants).** Baselines use the same system prompt without the precedence paragraph and list facts as `- (date) key: fact`; at lag 0 DeltaWAL-Versioned has no `NEWER MESSAGE` lines.
 
     [system]
     You are a helpful assistant with long-term memory of past conversations with the user. Answer
@@ -511,7 +509,7 @@ Baselines use the same system prompt without the precedence paragraph and list f
     Question: <question>
     Answer:
 
-#### Fact extractor.
+**Fact extractor.**
 
     [system]
     You are building a long-term memory of the USER from one chat session.
@@ -539,9 +537,7 @@ Baselines use the same system prompt without the precedence paragraph and list f
 
     <session date and turns; assistant turns truncated to 300 characters>
 
-#### Judge, correctness (knowledge-update rubric).
-
-Other types use the LongMemEval rubric of their type; temporal adds the off-by-one clause shown next, abstention uses the third prompt.
+**Judge, correctness (knowledge-update rubric).** Other types use the LongMemEval rubric of their type; temporal adds the off-by-one clause shown next, abstention uses the third prompt.
 
     I will give you a question, a correct answer, and a response from a model. Answer yes if the
       response contains the correct answer. Otherwise, answer no. If the response is equivalent to
@@ -559,7 +555,7 @@ Other types use the LongMemEval rubric of their type; temporal adds the off-by-o
 
     Is the model response correct? Reply as JSON {"correct": true|false}.
 
-#### Judge, temporal clause.
+**Judge, temporal clause.**
 
     I will give you a question, a correct answer, and a response from a model. Answer yes if the
       response contains the correct answer. Otherwise, answer no. If the response is equivalent to
@@ -570,14 +566,14 @@ Other types use the LongMemEval rubric of their type; temporal adds the off-by-o
       errors (e.g., predicting 19 days when the answer is 18), the model's response is still
       correct.
 
-#### Judge, abstention.
+**Judge, abstention.**
 
     I will give you an unanswerable question, an explanation, and a response from a model. Answer
       yes if the model correctly identifies the question as unanswerable. The model could say that
       the information is incomplete, or some other information is given but the asked information is
       not.
 
-#### Judge, behaviour (abstention and stale read).
+**Judge, behaviour (abstention and stale read).**
 
     Classify a model's response to a question about the user's past conversations.
 
@@ -598,7 +594,7 @@ Other types use the LongMemEval rubric of their type; temporal adds the off-by-o
 
 A knowledge-update question counts as KU-past if its text matches (case-insensitive, whole words) any of: *initial*, *initially*, *originally*, *first*, *before*, *previous*, *previously*, *used to*, *at first*, *earlier*, *prior*, *than i did*, *than before*, *switch*, *switched*.
 
-#### MemConflict audit rubric (blind raters).
+**MemConflict audit rubric (blind raters).**
 
     Conflict types:
     - dynamic: a user attribute changes over time; earlier session = old value, later session = new

@@ -122,6 +122,7 @@ def main() -> int:
         def tab(m):
             if m.group(1).endswith("app_prompts"):        # not a table: verbatim prompt blocks, let pandoc convert
                 txt = (P / f"{m.group(1)}.tex").read_text(encoding="utf-8")
+                txt = re.sub(r"\\begingroup\\fontsize\{[^}]*\}\{[^}]*\}\\selectfont|\\endgroup", "", txt)
                 return re.sub(r"\\(begin|end)\{footnotesize\}", "", txt)
             key = f"TABLEPLACEHOLDER{len(tables)}X"
             tables[key] = table_to_md((P / f"{m.group(1)}.tex").read_text(encoding="utf-8"), fmt, raw, labels)

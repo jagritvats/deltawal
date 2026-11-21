@@ -10,6 +10,8 @@
   "runs/bench_latency_nondurable_rerun.json": "e17426f4b08baa186083634d1ff2569641a735ec721aba29c842f57459070c90",
   "runs/forensics_heldout.json": "1e0cecdd0968b8758b6b28fd944e8da28d8ae58c5a98cb264ac112db04750f37",
   "runs/forensics_heldout.txt": "0292723a9363ad478057403e782ac9291685da8708d74937f73b75f48dde34e6",
+  "runs/human_audit_50.csv": "2d3584c42cb2ac421da8a73b8bc3e65befb85b24cfc46eb1482ff6ed94327f8f",
+  "runs/human_audit_scores.json": "5d53e0fd17a9d33cbbab824ee9362996b97287332c55aaceede4cd775aeb1e83",
   "runs/judge_agreement_heldout_full.json": "920f5d8c89738d87720e3d5c36e531ec5ff9ac67d718a4ab6b9f8e7594054093",
   "runs/judge_check50_codex.csv": "75f133ac176de73e2234f174fd7efa279f636a98666d22e95994fe0ae59456f0",
   "runs/m2ctl_gemma/results_judged.jsonl": "295c6acc7249c3137fa4d0c876416d1ac30f2525dc952d9ace9c108a5867be33",
@@ -463,6 +465,58 @@
    "top_k_facts": 12,
    "wal_sim_threshold": 0.35,
    "wal_top_m": 8
+  },
+  "human_audit": {
+   "rows": 50,
+   "distinct_questions": 38,
+   "failing_abstention_rows": 8,
+   "failing_abstention_distinct": 2,
+   "consistency_violations": 0,
+   "correct": {
+    "n": 50,
+    "agree_pct": 96.0,
+    "agree_ci95_pct": [
+     90.0,
+     100.0
+    ],
+    "kappa": 0.92,
+    "kappa_ci95": [
+     0.79,
+     1.0
+    ],
+    "positives_human": 24,
+    "positives_judge": 24
+   },
+   "abstained": {
+    "n": 50,
+    "agree_pct": 96.0,
+    "agree_ci95_pct": [
+     90.0,
+     100.0
+    ],
+    "kappa": 0.911,
+    "kappa_ci95": [
+     0.77,
+     1.0
+    ],
+    "positives_human": 17,
+    "positives_judge": 17
+   },
+   "stale_read": {
+    "n": 17,
+    "agree_pct": 94.1,
+    "agree_ci95_pct": [
+     82.3,
+     100.0
+    ],
+    "kappa": 0.821,
+    "kappa_ci95": [
+     0.0,
+     1.0
+    ],
+    "positives_human": 4,
+    "positives_judge": 3
+   }
   },
   "judge_agreement_qwen3.8-flash_vs_qwen4-max": {
    "n_pairs": 654,

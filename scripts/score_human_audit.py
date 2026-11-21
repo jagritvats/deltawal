@@ -54,6 +54,30 @@ def stats(a: list[bool], b: list[bool], iters: int = 2000, seed: int = 42) -> di
             "human_false_judge_false": sum((not x) and (not y) for x, y in zip(a, b))}
 
 
+def consistency(rows: list[dict]) -> dict:
+    """Judge-free internal-consistency rules on the human labels (they read only the human columns and the
+    stratum, never the judge columns). A violation is a self-contradictory row:
+      R1  an answerable question (not abstention) marked both declined and correct
+      R2  a knowledge-update row marked both correct and stale (stale = final answer is the superseded value)
+      R3  a knowledge-update row marked both stale and declined (a stale read commits to the superseded value)
+      R4  stale filled on a non-knowledge-update row, or missing on a knowledge-update row
+    """
+    viol = {"R1": [], "R2": [], "R3": [], "R4": []}
+    for r in rows:
+        ku = r["stratum"] == "knowledge-update"
+        hc, ha, hs = parse(r["human_correct"]), parse(r["human_abstained"]), parse(r["human_uses_superseded"])
+        if r["stratum"] != "abstention" and ha and hc:
+            viol["R1"].append(r["audit_id"])
+        if ku and hc and hs:
+            viol["R2"].append(r["audit_id"])
+        if ku and hs and ha:
+            viol["R3"].append(r["audit_id"])
+        if (hs is not None) != ku:
+            viol["R4"].append(r["audit_id"])
+    return {"rules": sorted(viol), "violations": sum(len(v) for v in viol.values()),
+            "violating_rows": {k: v for k, v in viol.items() if v}}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default="runs/human_audit_50.csv")
@@ -77,6 +101,12 @@ def main() -> int:
               f"human_uses_superseded with 1/0 and re-run.")
         return 1
     out = {"csv": args.csv, "rows": len(rows), "rows_with_human_correct": labeled,
+           "distinct_questions": len({r["qid"] for r in rows}),
+           # the sampling cell "abstention x judge says wrong" (stratified over unique answers, so paraphrases repeat)
+           "failing_abstention_rows": sum(1 for r in rows if r["stratum"] == "abstention" and parse(r["judge_correct"]) is False),
+           "failing_abstention_distinct": len({r["qid"] for r in rows if r["stratum"] == "abstention"
+                                               and parse(r["judge_correct"]) is False}),
+           "consistency": consistency(rows),
            **{k: stats([h for h, _ in v], [j for _, j in v]) for k, v in fields.items()}}
     (repo_path(args.out)).write_text(json.dumps(out, indent=2), encoding="utf-8")
     print(json.dumps(out, indent=2))
