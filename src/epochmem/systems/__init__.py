@@ -6,3 +6,8 @@ from .deltawal import DeltaWALLazy, DeltaWALPrompt, DeltaWALShadow, DeltaWALShad
 REGISTRY = {cls.name: cls for cls in (B1Sync, B1SyncVersioned, B2Async, B3Recency, B3RecencyMatched, B3RecencyMatchedUser,
                                       DeltaWALPrompt, DeltaWALShadow,
                                       DeltaWALShadowV2, DeltaWALLazy, DeltaWALVersioned)}
+
+# Additive: DeltaWAL-Versioned ablations and prompt probes (systems/ablations.py); existing entries unchanged.
+from .ablations import ABLATION_SYSTEMS  # noqa: E402
+
+REGISTRY.update({cls.name: cls for cls in ABLATION_SYSTEMS})

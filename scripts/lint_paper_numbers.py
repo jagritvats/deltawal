@@ -33,7 +33,7 @@ ALLOW = [
     r"\blag-[0-5]\b", r"\$?\\?lag\s*=\s*[0-5]\$?",r"\$lag\s*=\s*[0-5]\$", r"\\ell\s*=\s*[0-5]", r"\\ell\s*\\geq\s*1",
     r"p_\{?\\text\{ooo\}\}?\s*(=|\\in)\s*\\?\{?\s*0(\.0)?(\s*,\s*0\.3)?\s*\\?\}?", r"p_\{?\\text\{ooo\}\}?\s*=\s*0\.3",
     r"\bsession(s)?\s+\$?1\s*(\.\.|\\ldots|--)\s*T(\s*-\s*1)?\$?", r"\$?T\s*-\s*1\$?", r"\$1\.\.T\$",
-    r"\bstep[s]?\s+[1-9]\b", r"\(\s*[ivx]+\s*\)", r"\bO\(1\)", r"\btop-\$?k\$?", r"\b95th percentile\b",
+    r"\bstep[s]?\s+[1-9]\b", r"\(\s*[ivx]+\s*\)", r"\bO\(1\)", r"\btop-\$?k\$?", r"\b95th percentile\b", r"claude-haiku-5-5", r"\bR[1-4]\b", r"\bR[1-4]_R[1-4]\b",
     r"\\text\{[^{}]*\}",
 ]
 

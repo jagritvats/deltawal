@@ -53,8 +53,13 @@ def test_every_table_cell_is_in_the_manifest():
             for k in keys:
                 assert _ci(st[k]) in tex, (fname, key, k)
     tex = (TABLES / "tab2_history_ablation.tex").read_text(encoding="utf-8")
-    comb = m["tab2a/destructive_cases_combined"]
-    assert f"{comb['mutable']['correct']}/{comb['mutable']['n']} $\\to$ {comb['versioned']['correct']}/" in tex
+    for system in ("B1_sync", "deltawal_prompt", "B1_sync_versioned", "deltawal_versioned"):   # Table 2a rows
+        for k in ("KU_past", "KU_current"):
+            assert _ci(m[f"tab2a/pooled/{system}"][k]) in tex, (system, k)
+    tex = (TABLES / "tab10_ablation.tex").read_text(encoding="utf-8")
+    for variant, per in m["tab10"].items():
+        for rd, st in per.items():
+            assert f"{st['overall']['mean']:.1f}" in tex, (variant, rd)
 
 
 def test_table1_has_no_stand_in_cells():

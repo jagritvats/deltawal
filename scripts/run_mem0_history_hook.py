@@ -55,10 +55,15 @@ def main() -> int:
     ap.add_argument("--config", default="configs/m3_mem0.yaml")
     ap.add_argument("--run-id", required=True)
     ap.add_argument("--reader", required=True)
+    ap.add_argument("--all-ku", action="store_true", default=False,
+                    help="run on all 60 KU questions (default: the 13 KU-past questions only)")
+    ap.add_argument("--budget-usd", type=float, default=None, help="override the per-process opencode-zen spend cap")
     ap.add_argument("--allow-cloud", action="store_true", default=False)
     args = ap.parse_args()
     set_allow_cloud(args.allow_cloud)
     cfg = load_config(args.config)
+    if args.budget_usd is not None:
+        cfg["cloud"]["providers"]["opencode-zen"]["budget_usd"] = args.budget_usd
     m, mem = cfg["models"], cfg["mem0"]
     src_root = repo_path(mem["store_dir"]) / f"{slug(mem['llm'])}_mem0-{mem['version']}"
     scratch = repo_path("runs") / args.run_id / "_store_copy"
@@ -69,7 +74,7 @@ def main() -> int:
     router = make_router(cfg, [args.reader], f"ses_epochmem_{args.run_id}")
     be = Mem0Backend(router, mem["llm"], m["embedder"], m["query_instruction"], m["embed_dim"], scratch,
                      user_chars=2000, asst_chars=cfg["memory"]["assistant_trunc_chars_extract"])
-    preps = [p for p in ku_instances(cfg) if PAST.search(p.inst.question)]
+    preps = [p for p in ku_instances(cfg) if args.all_ku or PAST.search(p.inst.question)]
     k = int(mem.get("top_k", cfg["memory"]["top_k_facts"]))
     prec = PRECEDENCE if mem.get("precedence_in_baselines", True) else None
     date_of = None

@@ -3,7 +3,7 @@
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
-\caption{Mem0 OSS 1.0.11 (classic ADD/UPDATE/DELETE write path) on the 60 held-out knowledge-update questions. Mem0 sync ingests every session; Mem0 async leaves the final (update) session in flight; Mem0 + DeltaWAL adds the epoch-tagged WAL and relevance gate ($\tau=0.35$) on top of the async store. The history hook renders, for every retrieved memory, its earlier versions from \texttt{Memory.history()} in epoch order (run on the KU-past questions only; $^\ast$stale rate over those questions). On the 13 KU-past questions Mem0 updated the older evidence memory in place in 11 and deleted it in 0.}
+\caption{Mem0 OSS 1.0.11 (classic ADD/UPDATE/DELETE write path) on the 60 held-out knowledge-update questions. Mem0 sync ingests every session; Mem0 async leaves the final (update) session in flight; Mem0 + DeltaWAL adds the epoch-tagged WAL and relevance gate ($\tau=0.35$) on top of the async store. The history hook renders, for every retrieved memory, its earlier versions from \texttt{Memory.history()} in epoch order. On the 13 KU-past questions Mem0 updated the older evidence memory in place in 11 and deleted it in 0; the old value survived only in the history table in 5.}
 \label{tab:mem0}
 \begin{tabular}{lrcccc}
 \toprule
@@ -13,18 +13,18 @@ System & Lag & \begin{tabular}[b]{@{}c@{}}KU\\($n$=60)\end{tabular} & \begin{tab
 Mem0 sync & 0 & 76.7\,{\scriptsize[65, 87]} & 46.2\,{\scriptsize[23, 69]} & 85.1\,{\scriptsize[74, 94]} & 6.7 \\
 Mem0 async & 1 & 10.0\,{\scriptsize[3, 18]} & 46.2\,{\scriptsize[23, 77]} & 0.0\,{\scriptsize[0, 0]} & 66.7 \\
 Mem0 + DeltaWAL & 1 & 91.7\,{\scriptsize[83, 98]} & 92.3\,{\scriptsize[77, 100]} & 91.5\,{\scriptsize[83, 98]} & 6.7 \\
-Mem0 sync + history hook & 0 & -- & 100.0\,{\scriptsize[100, 100]} & -- & 0.0$^\ast$ \\
+Mem0 sync + history hook & 0 & 91.7\,{\scriptsize[85, 98]} & 100.0\,{\scriptsize[100, 100]} & 89.4\,{\scriptsize[81, 98]} & 6.7 \\
 \midrule
 \multicolumn{6}{l}{\textit{Reader: gpt-6-luna (cloud)}} \\
 Mem0 sync & 0 & 76.7\,{\scriptsize[65, 87]} & 53.8\,{\scriptsize[31, 77]} & 83.0\,{\scriptsize[72, 94]} & 6.7 \\
 Mem0 async & 1 & 11.7\,{\scriptsize[5, 20]} & 53.8\,{\scriptsize[31, 85]} & 0.0\,{\scriptsize[0, 0]} & 63.3 \\
 Mem0 + DeltaWAL & 1 & 96.7\,{\scriptsize[92, 100]} & 100.0\,{\scriptsize[100, 100]} & 95.7\,{\scriptsize[89, 100]} & 1.7 \\
-Mem0 sync + history hook & 0 & -- & 100.0\,{\scriptsize[100, 100]} & -- & 0.0$^\ast$ \\
+Mem0 sync + history hook & 0 & 88.3\,{\scriptsize[80, 97]} & 100.0\,{\scriptsize[100, 100]} & 85.1\,{\scriptsize[74, 94]} & 6.7 \\
 \midrule
 \multicolumn{6}{l}{\textit{Reader: glm-5.3 (frontier, cloud)}} \\
 Mem0 sync & 0 & 76.7\,{\scriptsize[65, 87]} & 46.2\,{\scriptsize[23, 69]} & 85.1\,{\scriptsize[74, 94]} & 5.0 \\
 Mem0 + DeltaWAL & 1 & 96.7\,{\scriptsize[92, 100]} & 100.0\,{\scriptsize[100, 100]} & 95.7\,{\scriptsize[89, 100]} & 0.0 \\
-Mem0 sync + history hook & 0 & -- & 100.0\,{\scriptsize[100, 100]} & -- & 0.0$^\ast$ \\
+Mem0 sync + history hook & 0 & 91.7\,{\scriptsize[85, 98]} & 100.0\,{\scriptsize[100, 100]} & 89.4\,{\scriptsize[81, 98]} & 5.0 \\
 \bottomrule
 \end{tabular}
 \par\medskip

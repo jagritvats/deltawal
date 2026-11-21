@@ -3,17 +3,17 @@
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
-\caption{MemConflict audit of the evaluated split: questions rated clean by rater~1 (R1), rater~2 (R2, a different model) and by both, and questions either rater calls a label error.}
+\caption{MemConflict audit of the evaluated split: questions rated clean by each blind rater (R1 and R2 on Claude models, R3 on a GPT model via Codex CLI, R4 on a Gemini model via Antigravity), by R1 and R2 (the set used in Table~\ref{tab:memconflict_clean}) and by all four. Fleiss' $\kappa$ (clean vs.\ not clean) is 0.625.}
 \label{tab:memconflict_audit}
-\begin{tabular}{lrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-Type & $n$ & Clean (R1) & Clean (R2) & Clean (both) & \begin{tabular}[b]{@{}c@{}}Label error\\(either rater)\end{tabular} \\
+Type & $n$ & R1 & R2 & R3 & R4 & \begin{tabular}[b]{@{}c@{}}R1 and R2\\(main set)\end{tabular} & \begin{tabular}[b]{@{}c@{}}All four\\raters\end{tabular} \\
 \midrule
-Dynamic & 30 & 27 & 28 & 27 & 1 \\
-Static & 30 & 20 & 20 & 17 & 0 \\
-Conditional & 30 & 29 & 26 & 26 & 0 \\
+Dynamic & 30 & 27 & 28 & 27 & 22 & 27 & 22 \\
+Static & 30 & 20 & 20 & 14 & 17 & 17 & 13 \\
+Conditional & 30 & 29 & 26 & 26 & 24 & 26 & 24 \\
 \midrule
-All & 90 & 76 & 74 & 70 & 1 \\
+All & 90 & 76 & 74 & 67 & 63 & 70 & 59 \\
 \bottomrule
 \end{tabular}
 \end{table*}

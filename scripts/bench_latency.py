@@ -93,6 +93,8 @@ def main() -> int:
     ap.add_argument("--questions", type=int, default=10)
     ap.add_argument("--lag", type=int, default=3)
     ap.add_argument("--no-reader", action="store_true", help="skip live end-to-end reader calls")
+    ap.add_argument("--out", default="runs/bench_latency_m2.json", help="output JSON path (repo-relative)")
+    ap.add_argument("--read-systems", nargs="*", default=None, help="subset of read paths to time (default: all)")
     args = ap.parse_args()
     set_allow_cloud(False)
     cfg = load_config(args.config)
@@ -102,14 +104,15 @@ def main() -> int:
     lctx = Ctx(cfg=cfg, client=live, extractor=ctx.extractor, store=ctx.store, wal=ctx.wal, bus=ctx.bus, seed=ctx.seed)
     lctx.wal.trim = True
     preps = [p for p in select_instances(cfg, None)][: args.questions]
+    read_systems = args.read_systems or READ_SYSTEMS
 
     w_b1, w_b2, w_dw, vis, vis_with_extract = [], [], [], [], []
-    read = {s: [] for s in READ_SYSTEMS}
-    read_noemb = {s: [] for s in READ_SYSTEMS}
+    read = {s: [] for s in read_systems}
+    read_noemb = {s: [] for s in read_systems}
     qemb_s = []
-    e2e = {s: [] for s in READ_SYSTEMS}
+    e2e = {s: [] for s in read_systems}
     wal_sizes = []
-    bg_done, lazy_fill = [], {s: [] for s in READ_SYSTEMS}
+    bg_done, lazy_fill = [], {s: [] for s in read_systems}
     cold = {"deltawal_prompt": [], "deltawal_shadow_v2": []}
     cold_n = {"deltawal_prompt": [], "deltawal_shadow_v2": []}
     stamp = int(time.time())
@@ -158,7 +161,7 @@ def main() -> int:
         wal_sizes.append({"qid": prep.inst.qid, "n_sessions": prep.n, "committed_epoch": ctx.wal.committed(ns),
                           "wal_log_turns_after_trim": ctx.wal.log_size(ns)})
         # read paths
-        for s in READ_SYSTEMS:
+        for s in read_systems:
             sysobj = REGISTRY[s](lctx)
             sysobj.read_diag, sysobj.read_llm_ms = {}, 0.0
             target = ns_sync if s == "B1_sync" else ns
@@ -210,7 +213,7 @@ def main() -> int:
         "cold_read_lazy_embedded_turns_mean": {s: (sum(v) / len(v) if v else 0) for s, v in cold_n.items()},
         "read_lazy_embedded_turns_mean": {s: (sum(v) / len(v) if v else 0) for s, v in lazy_fill.items()},
     }
-    path = repo_path("runs/bench_latency_m2.json")
+    path = repo_path(args.out)
     path.write_text(json.dumps(out, indent=2), encoding="utf-8")
     print(json.dumps({k: v for k, v in out.items() if k != "wal_trim_check"}, indent=1))
     print("wal trim:", wal_sizes[:3])

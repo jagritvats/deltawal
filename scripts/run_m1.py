@@ -23,6 +23,8 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=None, help="instances processed concurrently")
     ap.add_argument("--no-judge", action="store_true", help="defer judging to the deduplicated judge pass")
     ap.add_argument("--allow-go-scale", action="store_true", help="explicitly lift the opencode-go instance cap")
+    ap.add_argument("--budget-usd", type=float, default=None,
+                    help="override the per-process opencode-zen spend cap (cloud.providers.opencode-zen.budget_usd)")
     ap.add_argument("--allow-cloud", action="store_true", default=False,
                     help="permit non-localhost model endpoints (off for Milestone 1)")
     args = ap.parse_args()
@@ -34,6 +36,8 @@ def main() -> int:
         cfg["models"]["judge"] = args.judge
     if args.workers:
         cfg["runtime"]["workers"] = args.workers
+    if args.budget_usd is not None:
+        cfg["cloud"]["providers"]["opencode-zen"]["budget_usd"] = args.budget_usd
     cfg["runtime"]["allow_go_scale"] = bool(args.allow_go_scale)
     if args.cells:
         import epochmem.runner as R

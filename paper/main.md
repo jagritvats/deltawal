@@ -4,7 +4,7 @@
 
 # Abstract
 
-LLM agent memories that extract facts from each conversation session often run extraction asynchronously, behind a message broker. A question can then arrive before the newest session is committed, and the reader answers from a superseded fact. Once the update is committed, stores that update in place, and read paths that mask superseded facts, lose the earlier value. We formalise both failures, read-after-write staleness and history erasure, and measure them on LongMemEval-S with a deterministic lag barrier and a commit-reordering model. We propose DeltaWAL, which writes raw turns with monotonic epochs to a write-ahead log before the broker publish and merges the uncommitted, relevance-gated log tail with stored facts in epoch order; DeltaWAL-Versioned also keeps every fact version. With one session in flight, an asynchronous store answers at most 11.7% of knowledge-update questions correctly across three readers, while DeltaWAL-Versioned answers 96.7% with glm-5.3, the same as with a complete store, and acknowledges writes in milliseconds. In-place updates and read-side masking both erase answers to questions about earlier values; Mem0 OSS 1.0.11 shows the same loss. On MemConflict, the system ordering replicates for genuine updates; on a small, audited set of false corrections, the newer-wins rule leads readers to believe the false statement, an exploratory limit of epoch precedence.
+LLM agent memories that extract facts from each conversation session often run extraction asynchronously, behind a message broker. A question can then arrive before the newest session is committed, and the reader answers from a superseded fact. Once the update is committed, stores that update in place, and read paths that mask superseded facts, lose the earlier value. We formalise both failures, read-after-write staleness and history erasure, and measure them on LongMemEval-S with a deterministic lag barrier and a commit-reordering model. We propose DeltaWAL, which writes raw turns with monotonic epochs to a write-ahead log before the broker publish and merges the uncommitted, relevance-gated log tail with stored facts in epoch order; DeltaWAL-Versioned also keeps every fact version. When the update is the session still in flight, an asynchronous store answers at most 11.7% of knowledge-update questions correctly across three readers, while DeltaWAL-Versioned answers 96.7% with glm-5.3, its own score with a complete store, and acknowledges writes in milliseconds. Ablations show that the relevance gate carries this gain, while an explicit newer-wins instruction adds nothing measurable. In-place updates and read-side masking both erase answers to questions about earlier values; keeping versions in the store, not the prompt format, restores them, and Mem0 OSS 1.0.11 shows the same loss, which a read-only history hook recovers. On MemConflict, audited by four LLM raters from three model families, the system ordering replicates for genuine updates; on a small set of false corrections, newer-wins ordering makes readers believe the false statement more often, an exploratory limit of the design.
 
 # 1 Introduction
 
@@ -14,19 +14,19 @@ This paper studies two ways in which a fact-extraction memory returns the wrong 
 
 We make both failures measurable on LongMemEval-S (Wu et al. 2025). A deterministic barrier holds the newest $\ell$ sessions in flight when a question fires, and a straggler model reorders commits with probability $p_\text{ooo}$. We then propose DeltaWAL, which treats the raw conversation as a write-ahead log (Mohan et al. 1992). Every session is written through to a Redis log with a monotonic epoch before the broker publish. At read time, one atomic call returns the committed watermark and the uncommitted log tail. Relevant uncommitted turns are merged with the stored facts in epoch order, and the reader is told that the higher epoch wins. DeltaWAL-Versioned adds an append-only store keyed by (entity key, source epoch), so no value is overwritten.
 
-The main findings are as follows. With one session in flight, an asynchronous store without the log answers between 10.0% and 11.7% of knowledge-update questions correctly across three readers (Table 1). DeltaWAL-Versioned scores 96.7% with glm-5.3 at lags 1 and 3, the same as at lag 0, and acknowledges writes in 2.67 ms at the median, where synchronous extraction waits for an LLM call per session (10,168 ms with our local 12B extractor; our cloud extractor took 4.26 s per call; Table 4). With the 12B local reader, temporal accuracy drops at lag 1 (48.1% against 65.4% at lag 0); we did not isolate the cause. At lag 0, the synchronous store with in-place updates answers at most 46.2% of questions about a previous value; DeltaWAL-Versioned’s append-only store answers at least 92.3% (Table 2). Read-side masking also costs these questions, and costs more the more it masks. Mem0 OSS, whose classic write path updates memories in place, shows the same loss, and a read-only hook that shows its stored history to the reader removes it (Table 3). On the dynamic conflicts of MemConflict (Tao et al. 2026), an independently generated dataset, the ordering of systems replicates. On its static conflicts, where the later statement is false by construction, newer-wins precedence leads the reader to believe the false statement more often; we report this as an exploratory boundary, because only 17 of the 30 static questions we audited pose a clean contradiction (Section 5.3).
+The main findings are as follows. When the update is the session in flight, an asynchronous store without the log answers between 10.0% and 11.7% of knowledge-update questions correctly across three readers (Table 1). DeltaWAL-Versioned scores 96.7% with glm-5.3 at lags 1 and 3, the same as at lag 0, and acknowledges writes in 2.67 ms at the median, where synchronous extraction waits for an LLM call per session (10,168 ms with our local 12B extractor; our cloud extractor took 4.26 s per call; Table 3). Ablations attribute the gain to the relevance gate: filling the same token budget with the most recent uncommitted turns instead drops accuracy from 84.5% to 39.1% (pooled over readers), while removing the newer-wins instruction changes nothing measurable (Table 8). With the 12B local reader, temporal accuracy drops at lag 1 (48.1% against 65.4% at lag 0); prompt length is not the cause. At lag 0, an in-place store answers 43.6%–46.2% of questions about a previous value whether or not the prompt carries epoch tags, and an append-only store 97.4% (Table 2). Read-side masking also costs these questions, and costs more the more it masks. Mem0 OSS, whose classic write path updates memories in place, shows the same loss, and a read-only hook that shows its stored history to the reader recovers it (Table 6). On the dynamic conflicts of MemConflict (Tao et al. 2026), an independently generated dataset, the ordering of systems replicates. On its static conflicts, where the later statement is false by construction, newer-wins ordering leads the reader to believe the false statement more often; we report this as an exploratory boundary, because four raters find at most 20 of the 30 static questions clean (Section 5.3).
 
 Our contributions are:
 
 - A formulation of read-after-write staleness and history erasure for asynchronous fact-extraction memory, with a deterministic lag barrier and reordering model that make both reproducible without timing (Section 2).
 
-- DeltaWAL and DeltaWAL-Versioned: a write-through raw log with monotonic epochs, an atomic watermark-plus-tail snapshot, a relevance gate and an epoch-ordered merge that needs no extra model call, over an append-only store (Section 2.3).
+- DeltaWAL and DeltaWAL-Versioned: a write-through raw log with monotonic epochs, a relevance gate and an epoch-ordered merge that needs no extra model call, over an append-only store (Section 2.3), with ablations that isolate the gate as the component that matters.
 
-- An evaluation on LongMemEval-S with three readers, every cell measured natively, together with latency on a real broker, log and vector store (Sections 3 and 6).
+- An evaluation on LongMemEval-S with three readers, every cell measured natively, paired tests, and two judges from different model families, together with latency on a real broker, log and vector store (Sections 3 and 6).
 
 - History ablations showing that in-place overwrite and read-side masking both erase answers about earlier values, and that a compare-and-set fence prevents reordering corruption but not missed merges (Section 4).
 
-- External checks on non-update questions, on Mem0 OSS with in-place updates, and on MemConflict with a blind two-rater audit of every evaluated question, including an exploratory negative result for epoch precedence on false corrections (Section 5).
+- External checks on non-update questions, on Mem0 OSS with in-place updates, and on MemConflict with a blind audit of every evaluated question by four LLM raters from three model families, including an exploratory negative result for epoch precedence on false corrections (Section 5).
 
 Code and run artifacts are provided as supplementary material.
 
@@ -34,7 +34,7 @@ Code and run artifacts are provided as supplementary material.
 
 ![Figure 1](figures/preview/fig1_architecture.png)
 
-**Figure 1.** DeltaWAL-Versioned. *Write path*: raw turns and a monotonic epoch e are written through to a Redis WAL before the broker publish; the write is acknowledged after the WAL write and the broker acknowledgement (median 2.67 ms, Table 4). A worker extracts facts into an append-only PostgreSQL/pgvector store keyed by (entity key, source epoch) and advances the committed watermark. *Read path*: one Lua call snapshots the watermark and the uncommitted WAL tail; a cosine gate (τ=0.35, at most m=8 turns) selects relevant turns, which are merged with the top-k stored versions (k=12) in epoch order under a newer-wins instruction, keeping older versions visible. Median read path 10.6 ms, excluding the reader and the query embedding.
+**Figure 1.** DeltaWAL-Versioned. *Write path*: raw turns and a monotonic epoch e are written through to a Redis WAL before the broker publish; the write is acknowledged after the WAL write and the broker acknowledgement (median 2.67 ms, Table 3). A worker extracts facts into an append-only PostgreSQL/pgvector store keyed by (entity key, source epoch) and advances the committed watermark. *Read path*: one Lua call snapshots the watermark and the uncommitted WAL tail; a cosine gate (τ=0.35, at most m=8 turns) selects relevant turns, which are merged with the top-k stored versions (k=12) in epoch order under a newer-wins instruction, keeping older versions visible. Median read path 10.6 ms, excluding the reader and the query embedding.
 
 ## 2.1 Setting
 
@@ -70,7 +70,7 @@ All systems share the extractor, the embedder, $k$ and a reader system prompt th
 
 #### DeltaWAL write path.
 
-For each session, the client increments the epoch counter in Redis and appends the raw turns with that epoch to a Redis write-ahead log (WAL) in one pipelined transaction, then publishes the session to the broker. The write is acknowledged after both steps. A background embedder computes turn and sentence embeddings off the acknowledgement path. The worker extracts facts, commits them with CAS on the source epoch, and advances $W$; WAL entries at or below $W$ are trimmed. As in database write-ahead logging (Mohan et al. 1992), an acknowledged write is durable and readable before the derived state, here the extracted facts, exists. The per-user epoch is a single-writer instance of a logical clock (Lamport 1978).
+For each session, the client increments the epoch counter in Redis and appends the raw turns with that epoch to a Redis write-ahead log (WAL) in one pipelined transaction, then publishes the session to the broker. The write is acknowledged after both steps. A background embedder computes turn and sentence embeddings off the acknowledgement path. The worker extracts facts, commits them with CAS on the source epoch, and advances $W$; WAL entries at or below $W$ are trimmed. As in database write-ahead logging (Mohan et al. 1992), an acknowledged write is readable before the derived state, here the extracted facts, exists; it is also durable only if Redis persists the log (Section 6 measures that cost). The per-user epoch is a single-writer instance of a logical clock (Lamport 1978).
 
 #### DeltaWAL read path.
 
@@ -86,11 +86,11 @@ We use the cleaned release of LongMemEval-S (Wu et al. 2025). The held-out set 
 
 #### Models.
 
-The extractor is glm-5.3-flash, run once per session. It sees user turns in full, assistant turns truncated to 300 characters, and the list of keys already in use so that updates can reuse a key. Embeddings come from qwen3-embedding:0.6b, and $k=12$. The readers are gemma4 (12B, quantised, local), glm-5.3 and gpt-6-luna (API). All calls use temperature zero and seed 42 and are cached, so each cell is a single deterministic run. Accuracy runs use the real broker (Redpanda, which speaks the Kafka protocol (Kreps et al. 2011)), Redis and PostgreSQL with pgvector; only timing is replaced by the barrier.
+The extractor is glm-5.3-flash, run once per session. It sees user turns in full, assistant turns truncated to 300 characters, and the list of keys already in use so that updates can reuse a key. Embeddings come from qwen3-embedding:0.6b, and $k=12$. The readers are gemma4 (12B, quantised, local), glm-5.3 and gpt-6-luna (API). All calls use temperature zero and seed 42 and are cached, so each cell is a single deterministic run. Accuracy runs pass every session through the real broker (Redpanda, which speaks the Kafka protocol (Kreps et al. 2011)), Redis and PostgreSQL with pgvector, with an in-process worker committing cached extractions; only timing is replaced by the barrier.
 
 #### Judge and statistics.
 
-One judge, qwen3.8-flash, grades every answer in the paper with the per-type LongMemEval rubric, in the LLM-as-a-judge setup of Zheng et al. (2023). A second call labels abstention and, for KU questions, use of the superseded value, which gives the stale-read rate. Against qwen4-max on 654 verdict pairs from 47 questions, Cohen’s $\kappa$ is 0.967 (0.94–0.99) for correctness and 0.978 (0.94–1.00) for stale reads. Intervals are 95% percentile bootstrap intervals over questions (2000 resamples); pooled cells resample questions as clusters.
+One judge, qwen3.8-flash, grades every answer in the paper with the per-type LongMemEval rubric, in the LLM-as-a-judge setup of Zheng et al. (2023). A second call labels abstention and, for KU questions, use of the superseded value, which gives the stale-read rate. Against qwen4-max on 654 verdict pairs, Cohen’s $\kappa$ is 0.967 for correctness and 0.978 for stale reads. A second judge from another model family, claude-haiku-5-5, re-graded every answer with the same prompts and agrees on 97.7% of correctness verdicts ($\kappa=0.949$; 0.987 for stale reads; Table 10); every comparison we report keeps its direction under it. Intervals are 95% percentile bootstrap intervals over questions (2000 resamples); pooled cells resample questions as clusters. Paired comparisons give the questions won and lost, an exact McNemar test per reader, and, pooled over readers, a sign-flip permutation test with the question as the unit.
 
 ## 3.2 Main results
 
@@ -130,37 +130,34 @@ One judge, qwen3.8-flash, grades every answer in the paper with the per-type Lon
 
 #### Asynchrony without the WAL breaks updates.
 
-With one session in flight, B2 answers 10.0–11.7% of KU questions correctly across readers, against 76.7–83.3% for B1 (Table 1); most errors are stale reads (53.3–68.3% of KU answers), and temporal accuracy falls to at most 5.8% because the last evidence session is the one in flight. A stronger reader does not help. B3’s recency window recovers part of the loss (63.3–80.0% on KU) but still reads stale values on 11.7–30.0% of KU questions: without epoch tags the reader sees a stale fact next to an undated raw turn and has no rule for choosing. B3’s token budget was matched to an earlier measurement of DeltaWAL’s prompt; in the final runs it averages 1012 tokens against 1255 for DeltaWAL-Versioned, so the match is approximate and favours DeltaWAL-Versioned.
+With one session in flight, B2 answers 10.0–11.7% of KU questions correctly across readers, against 76.7–83.3% for B1 (Table 1); most errors are stale reads (53.3–68.3% of KU answers), and temporal accuracy falls to at most 5.8% because the last evidence session is the one in flight. A stronger reader does not help. B3’s recency window recovers part of the loss (63.3–80.0% on KU) but still reads stale values on 11.7–30.0% of KU questions. Table 8 decomposes the gap, pooled over readers. Dating B3’s raw turns, with nothing else changed, raises its temporal accuracy from 37.2% to 49.4% ($p=0.053$) but not its KU accuracy (67.2% vs. 71.7%). Moving the recency window onto DeltaWAL-Versioned’s store and prompt (epoch tags, precedence instruction, and a budget that also grows from 1012 to 1256 tokens) raises KU accuracy to 85.0%, and replacing the window with the relevance gate raises overall accuracy by a further 42/10 questions won/lost ($p=0.002$). The gate is the essential component: filling the same budget with the newest uncommitted turns drops accuracy from 84.5% to 39.1%, because the evidence usually sits earlier in the in-flight session, and the gate admitted a turn of the update session for every KU question at lags 1, 3 and 5. Removing the precedence instruction changes nothing measurable (7 won, 10 lost, $p=0.580$); removing the explicit epoch labels from items that keep their session dates and chronological order adds little for glm-5.3 but costs KU questions for the 12B reader (0 won, 6 lost, $p=0.031$).
 
 #### DeltaWAL-Versioned removes most of the cost of asynchrony.
 
-The cleanest comparison is DeltaWAL-Versioned at lag $\ell$ against itself at $\ell=0$, where it reads the complete versioned store. For glm-5.3 the scores are identical at lags 0, 1 and 3 (91.3% overall, 86.2–95.7); for gpt-6-luna, lags 1 and 3 give 88.4% against 89.1% at lag 0, with stale reads at 0.0% and 3.3%. Against B1, DeltaWAL-Versioned at lag 1 is higher on KU for all three readers, a gain Section 4 traces to KU-past questions, and it acknowledges writes in milliseconds instead of seconds (Figure 2a). The WAL tail costs tokens: 1255 prompt tokens at lag 1 against 791 at lag 0. Shadow and Lazy also beat B2 and B3 overall for every reader but stay below DeltaWAL-Versioned on KU (glm-5.3: 85.0% and 80.0% against 96.7%); both drop stored facts that a newer item supersedes, the read-side erasure of Section 4.
+The cleanest comparison is DeltaWAL-Versioned at lag $\ell$ against itself at $\ell=0$, where it reads the complete versioned store. For glm-5.3 the scores are identical at lags 0, 1 and 3 (91.3% overall, 86.2–95.7); for gpt-6-luna, lags 1 and 3 give 88.4% against 89.1% at lag 0, with stale reads at 0.0% and 3.3%. Against B1, DeltaWAL-Versioned at lag 1 is higher on KU for all three readers (7/4, 12/0 and 12/4 questions won/lost, exact $p=0.549$, \<0.001, 0.077; pooled permutation $p=0.018$), a gain Section 4 traces to KU-past questions, and it acknowledges writes in milliseconds instead of seconds (Figure 2a). The WAL tail costs tokens: 1255 prompt tokens at lag 1 against 791 at lag 0. Shadow and Lazy also beat B2 and B3 overall for every reader but stay below DeltaWAL-Versioned on KU (glm-5.3: 85.0% and 80.0% against 96.7%); both drop stored facts that a newer item supersedes, the read-side erasure of Section 4.
 
 #### The 12B reader loses temporal accuracy when the WAL tail is in the prompt.
 
-gemma4’s temporal accuracy with DeltaWAL-Versioned drops from 65.4% at lag 0 to 48.1% (34.6–61.5) at lag 1 and stays there at lags 3 and 5, so its overall accuracy at lag 1 (73.9%) is below B1’s (79.7%), with overlapping intervals; glm-5.3 keeps 86.5% on the same prompts (Figure 2b). In the 15 temporal questions gemma4 gets wrong under the DeltaWAL prompt at lag 1 but right under B1 or Lazy, it abstains or computes a date or count from the wrong item of a prompt that mixes facts and raw turns. Lazy, which turns the gated turns into facts first, keeps gemma4 at 65.4% at the cost of an extraction call per query. A reader-capacity limit on long mixed prompts is a plausible cause; we did not isolate it.
+gemma4’s temporal accuracy with DeltaWAL-Versioned drops from 65.4% at lag 0 to 48.1% (34.6–61.5) at lag 1 (1 won, 10 lost, $p=0.012$) and stays there at lags 3 and 5, so its overall accuracy at lag 1 (73.9%) is below B1’s (79.7%), with overlapping intervals; glm-5.3 keeps 86.5% on the same prompts (Figure 2b). Prompt length is not the cause: a lag-0 prompt padded with further stored facts to the lag-1 length keeps 67.3% (Table 9). The failures come from how raw turns are presented: gemma4 abstains when a raw turn says “today”, or takes the message date for the event date, and dating the tail turns explicitly or placing them before the facts each recovers about half of the gap (57.7% and 57.7%, neither significant alone), while removing the precedence instruction does not help. Lazy, which turns the gated turns into facts first, keeps gemma4 at 65.4% at the cost of an extraction call per query.
 
 ![Figure 2](figures/preview/fig2_pareto.png)
 
-**Figure 2.** Accuracy against median latency for gemma4 (circles) and glm-5.3 (squares); async systems at lag 1, B1 at lag 0. (a) KU accuracy against write-acknowledgement latency: B1 waits for extraction (10,168 ms); all DeltaWAL variants share one write path (2.67 ms; points offset for legibility). (b) KU (filled) and temporal (hollow) accuracy against read-path latency, excluding the reader. DeltaWAL-Versioned is plotted at the DeltaWAL read-path latency (10.6 ms), since it uses the same gate and merge. The annotation marks gemma4's temporal accuracy at lag 1 (48.1%) against glm-5.3's (86.5%). Latencies from Table 4.
+**Figure 2.** Accuracy against median latency for gemma4 (circles) and glm-5.3 (squares); async systems at lag 1, B1 at lag 0. (a) KU accuracy against write-acknowledgement latency: B1 waits for extraction (10,168 ms); all DeltaWAL variants share one write path (2.67 ms; points offset for legibility). (b) KU (filled) and temporal (hollow) accuracy against read-path latency, excluding the reader. DeltaWAL-Versioned is plotted at the DeltaWAL read-path latency (10.6 ms), since it uses the same gate and merge. The annotation marks gemma4's temporal accuracy at lag 1 (48.1%) against glm-5.3's (86.5%). Latencies from Table 3.
 
 # 4 History Ablations
 
 Table 1 mixes two effects: whether a system sees the newest write, and whether it still sees the value that write replaced. Table 2 isolates the second: on the write side at lag 0, on the read side at $\ell \geq 1$, and for store integrity under reordering.
 
-**Table 2.** History ablations on the 138 held-out questions. (a) KU-past/comparative questions at lag 0 for B1 sync (in-place store) and DeltaWAL-Versioned (append-only store, empty WAL; the lag-0 cells of Table 1); destructive cases are the held-out failures that forensics attributed to an overwritten key. (b) Shadow v2 masking threshold, pooled over the five async cells (lag 1/3/5, p_ooo∈ {0, 0.3}); `off' is the unmasked epoch-merge prompt on the same cells; CIs resample questions. (c) Out-of-order corruption (an updated key left at an older epoch) vs. missed merges, counted on the knowledge-update questions: the update's facts share no key with the earlier evidence, so no keyed policy can supersede the old value.
+**Table 2.** History ablations on the 138 held-out questions. (a) Store policy and prompt format at lag 0: B1 sync (in-place, plain dated facts), the DeltaWAL prompt over its CAS store (in-place, epoch tags and precedence instruction), B1 sync over an append-only store with the same kind of epoch-tagged prompt, and DeltaWAL-Versioned (empty WAL); rows 2 and 3 differ only in the store, rows 1 and 2 only in the prompt. Pooled CIs resample questions. (b) Shadow v2 masking threshold, pooled over the five async cells (lag 1/3/5, p_ooo∈ {0, 0.3}); re-run = question-cells whose set of masked facts differs from the frozen threshold's and therefore needed a new reader call (the others keep the frozen-threshold answer); `off' is the unmasked epoch-merge prompt on the same cells; CIs resample questions. (c) Out-of-order corruption (an updated key left at an older epoch) vs. missed merges, counted on the knowledge-update questions: the update's facts share no key with the earlier evidence, so no keyed policy can supersede the old value.
 
-*(a) Write side: in-place overwrite vs. append-only versions*
+*(a) Write side at lag 0: store policy and prompt format*
 
-| Reader | System and store (lag 0) | KU-past (n=13) | KU-current (n=47) | Destructive cases |
+| Store | Prompt | KU-past, pooled (n=13 per reader) | KU-past per reader (gemma4 / glm / gpt) | KU-current, pooled (n=47 per reader) |
 |---|---|---|---|---|
-| gemma4 (12B, local) | B1 sync, mutable | 46.2 [23, 69] | 93.6 [85, 100] | – |
-| gemma4 (12B, local) | DeltaWAL-V., versioned | 92.3 [77, 100] | 95.7 [89, 100] | – |
-| glm-5.3 (frontier, cloud) | B1 sync, mutable | 38.5 [15, 62] | 87.2 [77, 96] | 0/6 |
-| glm-5.3 (frontier, cloud) | DeltaWAL-V., versioned | 100.0 [100, 100] | 95.7 [89, 100] | 6/6 |
-| gpt-6-luna (cloud) | B1 sync, mutable | 46.2 [23, 69] | 89.4 [81, 98] | 0/7 |
-| gpt-6-luna (cloud) | DeltaWAL-V., versioned | 100.0 [100, 100] | 91.5 [83, 98] | 7/7 |
-| Destructive-overwrite cases, cloud readers combined (mutable → versioned) | 0/13 → 13/13 |  |  |  |
+| in-place | plain (B1) | 43.6 [21, 69] | 46.2 / 38.5 / 46.2 | 90.1 [83, 96] |
+| in-place | epoch tags (DeltaWAL prompt) | 46.2 [23, 69] | 46.2 / 46.2 / 46.2 | 92.9 [87, 99] |
+| append-only | epoch tags (B1 versioned) | 97.4 [92, 100] | 92.3 / 100.0 / 100.0 | 94.3 [88, 99] |
+| append-only | epoch tags (DeltaWAL-V.) | 97.4 [92, 100] | 92.3 / 100.0 / 100.0 | 94.3 [89, 99] |
 
 *(b) Read side: Shadow v2 masking threshold (gemma4; frozen 0.72)*
 
@@ -177,29 +174,25 @@ Table 1 mixes two effects: whether a system sees the newest write, and whether 
 
 | Lag | Store policy | Updated keys | Corrupted keys (OOCR) | CAS rejections | KU questions with missed merge |
 |---|---|---|---|---|---|
-| 1 | LWW (B2, B3) | 294 | 23 (7.8%) | 0 | 9/138 (15.0%) |
-| 1 | CAS-fenced (DeltaWAL) | 294 | 0 (0.0%) | 25 | 9/138 (15.0%) |
-| 3 | LWW (B2, B3) | 267 | 24 (9.0%) | 0 | 11/138 (18.3%) |
-| 3 | CAS-fenced (DeltaWAL) | 267 | 0 (0.0%) | 26 | 11/138 (18.3%) |
+| 1 | LWW (B2, B3) | 294 | 23 (7.8%) | 0 | 9/60 (15.0%) |
+| 1 | CAS-fenced (DeltaWAL) | 294 | 0 (0.0%) | 25 | 9/60 (15.0%) |
+| 3 | LWW (B2, B3) | 267 | 24 (9.0%) | 0 | 11/60 (18.3%) |
+| 3 | CAS-fenced (DeltaWAL) | 267 | 0 (0.0%) | 26 | 11/60 (18.3%) |
 
 
 ## 4.1 Write side: in-place overwrite
 
-At lag 0, where staleness plays no role, B1 (in-place store) answers 46.2%, 38.5% and 46.2% of KU-past questions (gemma4, glm-5.3, gpt-6-luna), and DeltaWAL-Versioned (append-only store, empty WAL) 92.3%, 100.0% and 100.0% (Table 2a). With 13 questions the intervals are wide, but they do not overlap for any reader. KU-current accuracy is unaffected (87.2% vs. 95.7% for glm-5.3).
+At lag 0, where staleness plays no role, Table 2a separates the store policy from the prompt format. With an in-place store, readers answer 43.6% of KU-past questions with B1’s plain prompt and 46.2% with DeltaWAL’s epoch-tagged prompt (pooled over readers): the tags alone win 1 question. With the same kind of epoch-tagged prompt over an append-only store, they answer 97.4% (97.4% for DeltaWAL-Versioned): keeping versions wins 20 questions and loses 0 (permutation $p=0.016$; exact $p\leq0.031$ for every reader). The gain comes from the store, not from the tags, and KU-current accuracy is not reduced (90.1% vs. 94.3%). The cue words misclassify three KU questions; relabelling them leaves the result intact (24 won, 0 lost).
 
-A failure analysis confirms the mechanism. For the two cloud readers we took every KU question that B1 answered wrongly and the DeltaWAL prompt at lag 1 answered correctly and assigned one cause by inspecting store and prompt: 13 past or comparative questions on a key the update overwrote, 4 missed merges, 2 lossy extractions, 3 hedging answers and 1 empty output. On the overwrite cases B1 is right on 0 of 13 and DeltaWAL-Versioned on 13 of 13. The DeltaWAL prompt’s CAS store also answers them at lag 1, but only because the update has not committed yet: before the lag-1 cutoff, 7 of 60 KU questions have an evidence key with two committed versions. Asynchrony preserves history only until the update commits; afterwards a CAS store overwrites like B1.
+A failure analysis points to the mechanism. For the two cloud readers we took every KU question that B1 answered wrongly and the DeltaWAL prompt at lag 1 answered correctly and assigned one cause by inspecting store and prompt, knowing both outcomes: 13 past or comparative questions on a key the update overwrote, 4 missed merges, 2 lossy extractions, 3 hedging answers and 1 empty output. The overwrite cases are question–reader pairs covering 7 distinct questions, selected among B1’s failures; DeltaWAL-Versioned answers 13 of the 13. The DeltaWAL prompt’s CAS store also answers them at lag 1, but only because the update has not committed yet: before the lag-1 cutoff, 7 of 60 KU questions have an evidence key with two committed versions. Asynchrony preserves history only until the update commits; afterwards a CAS store overwrites like B1.
 
 ## 4.2 Read side: masking
 
-Shadow keeps the store intact but drops stored facts from the prompt when a newer WAL sentence is similar to them. Table 2b sweeps $\theta$ for gemma4 over five async cells (lags 1, 3 and 5 at $p_\text{ooo}=0$; lags 1 and 3 at $p_\text{ooo}=0.3$); a lower $\theta$ masks more. KU-past accuracy rises monotonically as masking is relaxed, from 15.4% at the most aggressive threshold through 41.5% at the frozen threshold to 84.6% with masking off, while KU-current stays between 89.8% and 93.6%. Masking buys nothing on current-value questions and costs past-value questions in proportion to how much it masks; the most and least aggressive settings have non-overlapping intervals (0.0–38.5 vs. 61.5–100.0). The frozen $\theta$ maximised correct masks under a cap on false masks on the dev split, a criterion that cannot see this cost. Figure 3a puts the two kinds of erasure side by side: write-side overwrite (B1 and Mem0 sync) and read-side masking (Shadow) give KU-past accuracies between 38.5% and 53.8%, and DeltaWAL-Versioned at lag 1, which does neither, 84.6%–100.0%.
-
-![Figure 3](figures/preview/fig3_destructive_symmetry.png)
-
-**Figure 3.** History erasure on the 13 KU-past questions. (a) Write-side overwrite (B1 sync and Mem0 sync, lag 0) and read-side masking (Shadow, lag 1) give similar KU-past accuracy; DeltaWAL-Versioned (lag 1) keeps older versions. Error bars are 95% bootstrap intervals. (b) Shadow threshold sweep for gemma4, pooled over five async cells: KU-past accuracy rises from 15.4% to 84.6% as masking is relaxed and switched off; KU-current stays near 89.8%. Bands resample questions as clusters; the dashed line marks the frozen θ=0.72.
+Shadow keeps the store intact but drops stored facts from the prompt when a newer WAL sentence is similar to them. Table 2b sweeps $\theta$ for gemma4 over five async cells (lags 1, 3 and 5 at $p_\text{ooo}=0$; lags 1 and 3 at $p_\text{ooo}=0.3$); a lower $\theta$ masks more. KU-past accuracy rises monotonically as masking is relaxed, from 15.4% at the most aggressive threshold through 41.5% at the frozen threshold to 84.6% with masking off, while KU-current stays between 89.8% and 93.6%. Masking buys nothing on current-value questions and costs past-value questions in proportion to how much it masks; the most and least aggressive settings have non-overlapping intervals (0.0–38.5 vs. 61.5–100.0). The frozen $\theta$ maximised correct masks under a cap on false masks on the dev split, a criterion that cannot see this cost. Write-side overwrite and read-side masking thus give similar KU-past accuracies (38.5%–53.8%; Figure 4 in the appendix).
 
 ## 4.3 Store integrity under reordering
 
-At $p_\text{ooo}=0.3$ and lag 1, LWW leaves 23 of 294 updated keys (7.8%) at an older value than the newest committed one (9.0% at lag 3); the CAS fence leaves none, rejecting 25 late writes (Table 2c). Corruption rarely reaches an evidence key: in a deterministic lag-0 replay with no model calls, 4 questions had one. For question answering, reordering matters far less than staleness. The fence does not address *missed merges*, where the facts from a KU question’s update session share no key with its earlier evidence: 9 of 60 KU questions (15.0%) at lag 1, identically under LWW and CAS, because the cause is extraction, not the write policy. A keyed store cannot supersede a value it does not recognise as the same entity; keeping both values and ordering them by epoch can, as in the 4 missed-merge cases of the failure analysis, too few to claim this in general.
+At $p_\text{ooo}=0.3$ and lag 1, LWW leaves 23 of 294 updated keys (7.8%) at an older value than the newest committed one (9.0% at lag 3); the CAS fence leaves none, rejecting 25 late writes (Table 2c). Corruption rarely reaches an evidence key: in a deterministic lag-0 replay with no model calls, 4 questions had one. For question answering, reordering matters far less than staleness: DeltaWAL-Versioned at $p_\text{ooo}=0.3$ and lag 1 wins 10 and loses 12 questions against its unreordered cells (permutation $p=0.837$; Table 8). The fence does not address *missed merges*, where the facts from a KU question’s update session share no key with its earlier evidence: 9 of 60 KU questions (15.0%) at lag 1, identically under LWW and CAS, because the cause is extraction, not the write policy. A keyed store cannot supersede a value it does not recognise as the same entity; keeping both values and ordering them by epoch can, as in the 4 missed-merge cases of the failure analysis, too few to claim this in general.
 
 # 5 External Validation
 
@@ -207,59 +200,33 @@ We ask whether the WAL tail hurts questions without updates, whether the erasure
 
 ## 5.1 Non-update questions
 
-On 60 LongMemEval-S questions disjoint from the held-out set (multi-session and single-session user, assistant and preference questions; Table 5 in Appendix A), DeltaWAL-Versioned at lag 0 scores at least as well as B1 for every reader (46.7% vs. 40.0% for gemma4, 66.7% vs. 55.0% for gpt-6-luna, 68.3% vs. 58.3% for glm-5.3). The intervals overlap, so we read this as no regression, not as an improvement. Single-session-assistant questions expose extraction loss: the extractor sees assistant turns truncated to 300 characters, so B1 answers 10.0% of them for every reader. At lag 1 the evidence session is still in the WAL and DeltaWAL-Versioned answers 80.0%, 70.0% and 80.0% from the raw turns. This is not a lasting gain: once the session commits, the detail is gone again.
+On 60 LongMemEval-S questions disjoint from the held-out set (multi-session and single-session user, assistant and preference questions; Table 4 in Appendix A), DeltaWAL-Versioned at lag 0 scores at least as well as B1 for every reader (46.7% vs. 40.0% for gemma4, 66.7% vs. 55.0% for gpt-6-luna, 68.3% vs. 58.3% for glm-5.3). The pooled paired gain is significant under one judge and not under the other (permutation $p=0.025$ with qwen3.8-flash, 0.122 with claude-haiku-5-5), so we read this as no regression, not as an improvement. Single-session-assistant questions expose extraction loss: the extractor sees assistant turns truncated to 300 characters, so B1 answers 10.0% of them for every reader. At lag 1 the evidence session is still in the WAL and DeltaWAL-Versioned answers 80.0%, 70.0% and 80.0% from the raw turns. This is not a lasting gain: once the session commits, the detail is gone again.
 
 ## 5.2 Mem0 OSS with in-place updates
 
-**Table 3.** Mem0 OSS 1.0.11 (classic ADD/UPDATE/DELETE write path) on the 60 held-out knowledge-update questions. Mem0 sync ingests every session; Mem0 async leaves the final (update) session in flight; Mem0 + DeltaWAL adds the epoch-tagged WAL and relevance gate (τ=0.35) on top of the async store. The history hook renders, for every retrieved memory, its earlier versions from `Memory.history()` in epoch order (run on the KU-past questions only; *stale rate over those questions). On the 13 KU-past questions Mem0 updated the older evidence memory in place in 11 and deleted it in 0.
-
-| System | Lag | KU (n=60) | KU-past (n=13) | KU-current (n=47) | Stale (%) |
-|---|---|---|---|---|---|
-| *Reader: gemma4 (12B, local)* |  |  |  |  |  |
-| Mem0 sync | 0 | 76.7 [65, 87] | 46.2 [23, 69] | 85.1 [74, 94] | 6.7 |
-| Mem0 async | 1 | 10.0 [3, 18] | 46.2 [23, 77] | 0.0 [0, 0] | 66.7 |
-| Mem0 + DeltaWAL | 1 | 91.7 [83, 98] | 92.3 [77, 100] | 91.5 [83, 98] | 6.7 |
-| Mem0 sync + history hook | 0 | – | 100.0 [100, 100] | – | 0.0* |
-| *Reader: gpt-6-luna (cloud)* |  |  |  |  |  |
-| Mem0 sync | 0 | 76.7 [65, 87] | 53.8 [31, 77] | 83.0 [72, 94] | 6.7 |
-| Mem0 async | 1 | 11.7 [5, 20] | 53.8 [31, 85] | 0.0 [0, 0] | 63.3 |
-| Mem0 + DeltaWAL | 1 | 96.7 [92, 100] | 100.0 [100, 100] | 95.7 [89, 100] | 1.7 |
-| Mem0 sync + history hook | 0 | – | 100.0 [100, 100] | – | 0.0* |
-| *Reader: glm-5.3 (frontier, cloud)* |  |  |  |  |  |
-| Mem0 sync | 0 | 76.7 [65, 87] | 46.2 [23, 69] | 85.1 [74, 94] | 5.0 |
-| Mem0 + DeltaWAL | 1 | 96.7 [92, 100] | 100.0 [100, 100] | 95.7 [89, 100] | 0.0 |
-| Mem0 sync + history hook | 0 | – | 100.0 [100, 100] | – | 0.0* |
-
-| Mem0 history events (60 questions) | ADD | UPDATE | DELETE |
-|---|---|---|---|
-| sessions 1..T-1 (async view) | 6913 | 152 | 3 |
-| sessions 1..T (sync view) | 7125 | 265 | 5 |
-| KU-past subset, sessions 1..T (n=13) | 1539 | 52 | 0 |
-
-
 We ran Mem0 OSS (Chhikara et al. 2025), pinned to version 1.0.11, on the 60 held-out KU questions. Each `add()` extracts facts with one LLM call and then decides, against similar existing memories, whether to ADD, UPDATE, DELETE or do nothing; UPDATE rewrites a memory in place, and the old text survives only in a history table exposed by `Memory.history()`, not by search. Mem0 2.x has an add-only write path that cannot exercise UPDATE, so we did not use it. Each question’s history was ingested once (internal LLM: gpt-6-luna) and shared across readers. *Mem0 sync* reads after all sessions are ingested, *Mem0 async* with the update session in flight, and *Mem0 + DeltaWAL* adds the gated WAL tail with epoch tags and the precedence instruction. The *history hook* is a read-only ablation on Mem0 sync that renders each retrieved memory’s earlier versions from `Memory.history()` in epoch order.
 
-Mem0 sync loses KU-past questions as our mutable store does: 46.2%, 53.8% and 46.2% (gemma4, gpt-6-luna, glm-5.3), against 85.1%–83.0% on KU-current (Table 3). On 11 of the 13 KU-past questions it updated the older evidence memory in place. UPDATE events are rare overall (265 against 7125 ADD events) but fall on exactly the facts these questions ask about. Mem0 async goes stale like B2 (KU-current 0.0% for both readers run). The DeltaWAL wrapper adds no state to Mem0 and raises KU accuracy to 91.7%–96.7%; its KU-past result has the same cause as in Section 4.1, since at lag 1 Mem0 has not yet applied the update. The history hook covers the committed state: it raises KU-past accuracy of Mem0 sync to 100.0% for all three readers. The old value was never lost; it sat in an audit table that the read path does not show, and on 2 questions it was the only remaining copy. The degenerate intervals reflect sample size, not certainty.
+Mem0 sync loses KU-past questions as our mutable store does: 46.2%, 53.8% and 46.2% (gemma4, gpt-6-luna, glm-5.3), against 83.0%–85.1% on KU-current (Table 6 in Appendix A; Figure 3a). On 11 of the 13 KU-past questions it updated the older evidence memory in place. UPDATE events are rare overall (265 against 7125 ADD events) but concentrate on the facts these questions ask about. Mem0 async goes stale like B2 (KU-current 0.0% for both readers run). The DeltaWAL wrapper adds no state to Mem0 and raises KU accuracy to 91.7%–96.7%; its KU-past result has the same cause as in Section 4.1, since at lag 1 Mem0 has not yet applied the update. The history hook covers the committed state. On all 60 KU questions it raises the accuracy of Mem0 sync from 76.7% for every reader to 88.3%–91.7% (25 questions won, 0 lost; permutation $p=0.001$), without losing a KU-current question. On KU-past it reaches 100.0% for all three readers under qwen3.8-flash (92.3%, 100.0% and 92.3% under claude-haiku-5-5). In 5 of the 13 KU-past questions the old value survived only in the history table; in the other 8 it was still in the live store, so there the hook helps by presenting the versions in order rather than by recovering a lost value.
 
 ## 5.3 MemConflict
 
-MemConflict (Tao et al. 2026) generates synthetic multi-session dialogues in two stages, a session synopsis and then the dialogue, and plants three conflict types. In a *dynamic* conflict a value changes and the newer one is correct; in a *static* conflict a later session contradicts a stable fact and the later statement is designated false; in a *conditional* conflict the applicable value depends on context. We drew 90 questions, 30 per type, and audited each blind to model outputs with two LLM raters (Appendix B). 76 and 74 questions are clean for the two raters, below our pre-set gate of 85%; the raters agree on 88.9% of questions (Cohen’s $\kappa=0.600$). Quality differs by type: 27 of 30 dynamic questions are clean for both raters, but only 17 of 30 static ones, mostly because the later statement does not logically contradict the earlier one (a Bachelor’s degree does not refute a Master’s). We therefore use the dynamic type as a replication and treat the static type as exploratory. Results below use the 70 questions both raters call clean; Appendix A has full-set tables.
+MemConflict (Tao et al. 2026) generates synthetic multi-session dialogues in two stages, a session synopsis and then the dialogue, and plants three conflict types. In a *dynamic* conflict a value changes and the newer one is correct; in a *static* conflict a later session contradicts a stable fact and the later statement is designated false; in a *conditional* conflict the applicable value depends on context. We drew 90 questions, 30 per type, and audited each blind to model outputs with four LLM raters from three model families (Appendix B). They call 76, 74, 67 and 63 questions clean, all below our pre-set gate of 85% (Fleiss’ $\kappa=0.625$). Quality differs by type: the raters call 27, 28, 27 and 22 of 30 dynamic questions clean but only 20, 20, 14 and 17 static ones, mostly because the later statement does not logically contradict the earlier one (a Bachelor’s degree does not refute a Master’s). We therefore use the dynamic type as a replication and treat the static type as exploratory. Results below use the 70 questions the first two raters both call clean (59 are clean for all four); the third reader is glm-5.3-flash, the extractor model, and Appendix A has full-set tables.
 
 #### Dynamic conflicts replicate the staleness result.
 
-Pooled over three readers, DeltaWAL-Versioned answers 59.3% of the clean dynamic questions at lag 0 and 60.5% at lag 1, B1 46.9%, and B2 and B3 at lag 1 17.3% and 18.5% (Figure 4b). The ordering matches LongMemEval-S; the DeltaWAL-Versioned and B1 intervals overlap.
+Pooled over three readers, DeltaWAL-Versioned answers 59.3% of the clean dynamic questions at lag 0 and 60.5% at lag 1, B1 46.9%, and B2 and B3 at lag 1 17.3% and 18.5% (Figure 3b). The ordering matches LongMemEval-S; DeltaWAL-Versioned and B1 do not differ significantly (14 won, 4 lost, permutation $p=0.150$).
 
 #### Static conflicts (exploratory).
 
-Here epoch precedence is the wrong rule by construction. On the clean static questions DeltaWAL-Versioned at lag 0 answers with the later, false statement on 86.3% (70.6–100.0) against 64.7% for B1, whose prompt has no precedence rule; the point estimate is higher for every reader and in every audit subset, but the set is small (17 questions) and the intervals overlap. B2 and B3 rarely believe the false statement only because it sits in the in-flight session, which B2 never sees and B3 sees as undated raw text. We read this as a boundary of the design rather than a measured effect size: newer-wins precedence assumes that a later statement is more correct, and false corrections need a different policy, such as checking the source of a correction or confirming a change to a stable fact against the version history.
+Here epoch precedence is the wrong rule by construction. On the clean static questions DeltaWAL-Versioned at lag 0 answers with the later, false statement on 86.3% (70.6–100.0) against 64.7% for B1, whose prompt has no precedence rule (11 answers flip toward the false statement and 0 away; permutation $p=0.015$). The direction holds for every reader, but the evidence is thin: the set has 17 questions, the permutation $p$ is 0.058 under claude-haiku-5-5, and under blind labels from a GPT-family rater the gap is 15.7 points (12.8 on the 13 static questions all four raters call clean, $p=0.371$). B1 also overwrites the first value when the false statement updates the same key, so the gap is not purely the precedence rule. We read this as a boundary of the design rather than a measured effect size: newer-wins ordering assumes that a later statement is more correct, and on LongMemEval-S the explicit instruction adds nothing measurable (Table 8), so it is optional for these readers and may reinforce false beliefs here. False corrections need a different policy, such as checking the source of a correction or confirming a change to a stable fact against the version history.
 
-![Figure 4](figures/preview/fig4_external.png)
+![Figure 3](figures/preview/fig4_external.png)
 
-**Figure 4.** External validation, pooled over readers. (a) Mem0 OSS on the 60 held-out KU questions: Mem0 sync loses KU-past (48.7%) because UPDATE overwrites in place; Mem0 async loses KU-current (0.0%); the DeltaWAL wrapper at lag 1 scores 97.4% and 94.3%; the read-only history hook recovers KU-past (100.0%). Markers show individual readers; Mem0 async was not run with glm-5.3. (b) MemConflict, all 90 questions: dynamic accuracy against the rate of believing the later, false statement on static questions (exploratory); hollow markers lag 0, filled lag 1, bars 95% intervals. The clean-subset values are in the text and Table 7.
+**Figure 3.** External validation, pooled over readers. (a) Mem0 OSS on the 60 held-out KU questions: Mem0 sync loses KU-past (48.7%) because UPDATE overwrites in place; Mem0 async loses KU-current (0.0%); the DeltaWAL wrapper at lag 1 scores 97.4% and 94.3%; the read-only history hook recovers KU-past (100.0%). Markers show individual readers; Mem0 async was not run with glm-5.3. (b) MemConflict, all 90 questions: dynamic accuracy against the rate of believing the later, false statement on static questions (exploratory); hollow markers lag 0, filled lag 1, bars 95% intervals. The clean-subset values are in the text and Table 7.
 
 # 6 Latency
 
-We measured latency apart from the accuracy runs, on the full stack (Redpanda, Redis, PostgreSQL with pgvector, local qwen3-embedding:0.6b) with 10 dev-split questions at lag 3, with a real background worker that stops short of the last 3 sessions so that reads see a genuine in-flight tail (Table 4 in Appendix A). We give medians with the 95th percentile in parentheses. B1 acknowledges only after extraction, embedding and upsert: 10,168 ms (23,810 ms) with the local 12B extractor. The cloud extractor used for all evaluated sets took 4.26 s (7.63 s) per call, logged over 9707 live calls during concurrent batch extraction, so seconds per session remain on this path either way. B2 acknowledges after the broker publish, 0.98 ms (4.60 ms), and DeltaWAL after the WAL write-through and broker acknowledgement, 2.67 ms (7.34 ms), so the WAL adds 1.7 ms to the median. On the read path, excluding the query embedding, the warm DeltaWAL path takes 10.6 ms (14.6 ms) against 4.21 ms (5.26 ms) for B1’s vector search; a cold read, before the background embedder has processed the tail, takes 429.6 ms (495.0 ms); Lazy’s query-time extraction takes 3,699 ms (9,430 ms). DeltaWAL-Versioned uses the same gate and merge and was not benchmarked separately, nor were B3 or the Mem0 systems. These numbers come from one machine and indicate orders of magnitude.
+We measured latency apart from the accuracy runs, on the full stack (Redpanda, Redis, PostgreSQL with pgvector, local qwen3-embedding:0.6b) with 10 dev-split questions at lag 3, with a real background worker that stops short of the last 3 sessions so that reads see a genuine in-flight tail (Table 3 in Appendix A). We give medians with the 95th percentile in parentheses. B1 acknowledges only after extraction, embedding and upsert: 10,168 ms (23,810 ms) with the local 12B extractor. The cloud extractor used for all evaluated sets took 4.26 s (7.63 s) per call, logged over 9707 live calls during concurrent batch extraction, so seconds per session remain on this path either way. B2 acknowledges after the broker publish, 0.98 ms (4.60 ms), and DeltaWAL after the WAL write-through and broker acknowledgement, 2.67 ms (7.34 ms), so the WAL adds 1.7 ms to the median. On the read path, excluding the query embedding, the warm DeltaWAL path takes 10.6 ms (14.6 ms) against 4.21 ms (5.26 ms) for B1’s vector search; a cold read, before the background embedder has processed the tail, takes 429.6 ms (495.0 ms); Lazy’s query-time extraction takes 3,699 ms (9,430 ms). These runs keep the log in memory only. In back-to-back runs on the same, more heavily loaded machine, making Redis fsync every WAL write raised DeltaWAL’s write acknowledgement from 7.27 ms (21.4 ms) to 18.3 ms (47.5 ms), while B2’s did not change: durability costs about 11.1 ms at the median. DeltaWAL-Versioned uses the same gate and merge and was not benchmarked separately, nor were B3 or the Mem0 systems. These numbers come from one machine and indicate orders of magnitude.
 
 # 7 Related Work
 
@@ -277,25 +244,25 @@ LoCoMo (Maharana et al. 2024) and LongMemEval (Wu et al. 2025) evaluate memory
 
 #### Systems foundations.
 
-Read-your-writes is one of the session guarantees for weakly consistent replicated storage (Terry et al. 1994). Write-ahead logging makes a write durable before the derived state is updated (Mohan et al. 1992); DeltaWAL applies the idea to a store whose derived state is produced by an LLM. Per-user epochs are a single-writer instance of logical clocks (Lamport 1978), the pipeline follows the log-based broker design of Kafka (Kreps et al. 2011), and the compare-and-set fence is a conditional upsert on a version number, as in optimistic concurrency control.
+Read-your-writes is one of the session guarantees for weakly consistent replicated storage (Terry et al. 1994). Write-ahead logging makes a write durable before the derived state is updated (Mohan et al. 1992); DeltaWAL applies the idea to a store whose derived state is produced by an LLM, and relies mainly on the log being readable before that state exists. Per-user epochs are a single-writer instance of logical clocks (Lamport 1978), the pipeline follows the log-based broker design of Kafka (Kreps et al. 2011), and the compare-and-set fence is a conditional upsert on a version number, as in optimistic concurrency control.
 
 # 8 Limitations
 
 #### Evidence.
 
-Each cell is one greedy run; intervals capture question sampling only. One LLM judge grades everything, validated against a larger judge, not humans. KU-past cells have 13 questions and the regression and MemConflict strata are small; overlapping intervals are reported as no effect.
+Each cell is one greedy run; intervals capture question sampling only. The stream ends right after the update, so the staleness rates are conditional on the update being in flight, a worst case rather than a deployment rate. qwen3.8-flash grades everything; judge validation spans three model families (a larger qwen judge, claude-haiku-5-5 on every answer, and a GPT-family model on a 50-row check sheet), but no human has graded the check sheet. KU-past cells have 13 questions and the regression and MemConflict strata are small; non-significant paired differences are reported as no effect.
 
 #### Models and data.
 
-The cloud readers, extractor and judge are served through an API and can change; the cache makes our runs replayable, not re-executable against the same weights. The dev split used to calibrate $\tau$ and $\theta$ was extracted with the local gemma4 extractor, the evaluated sets with glm-5.3-flash. MemConflict is synthetic: 70 of 90 evaluated questions are clean for both of our raters, below the gate we set, and static conflicts are the weakest type (Appendix B); the audit used two LLM raters ($\kappa=0.600$) and has not been reviewed by a human. The replayed Shadow sweep differs from the original run in one temporal-reasoning cell at two thresholds; KU columns are unchanged.
+The cloud readers, extractor and judge are served through an API and can change; the cache makes our runs replayable, not re-executable against the same weights. The dev split used to calibrate $\tau$ and $\theta$ was extracted with the local gemma4 extractor, the evaluated sets with glm-5.3-flash. MemConflict is synthetic: 70 of 90 evaluated questions are clean for our first two raters and 59 for all four, below the gate we set, and static conflicts are the weakest type (Appendix B); the raters are LLMs from three families (Fleiss’ $\kappa=0.625$) and no human has reviewed the audit. The replayed Shadow sweep differs from the original run in one temporal-reasoning cell at two thresholds; KU columns are unchanged.
 
 #### Extraction, latency and scope.
 
-Every fact-based system is capped by its extractor: truncated assistant turns and inconsistent key reuse (missed merges) cost answers that the WAL tail recovers only while a session is in flight. Latency comes from one machine, ten dev questions and one lag. Epoch precedence assumes that newer means more correct, which fails for false corrections, and the 12B reader loses temporal accuracy when the WAL tail is in the prompt, for reasons we did not isolate.
+Every fact-based system is capped by its extractor: truncated assistant turns and inconsistent key reuse (missed merges) cost answers that the WAL tail recovers only while a session is in flight. Latency comes from one machine, ten dev questions and one lag, and the cost of a durable log was measured on a loaded machine. Newer-wins ordering assumes that newer means more correct, which fails for false corrections. The 12B reader loses temporal accuracy when the WAL tail is in the prompt; our probes rule out prompt length and point to how raw turns are dated and placed, but no single change closes the gap.
 
 # 9 Broader Impact
 
-Keeping every version of a user’s facts also retains values the user corrected or wants gone, so versioned memory needs user-visible deletion of all versions and retention limits. The raw WAL holds conversation text until extraction commits and needs the same access control as the fact store; ours trims it on commit. A later false statement can exploit the precedence rule, so one newer statement should not silently override a stable fact. We use public benchmark and synthetic dialogues only.
+Keeping every version of a user’s facts also retains values the user corrected or wants gone, so versioned memory needs user-visible deletion of all versions and retention limits. The raw WAL holds conversation text until extraction commits and needs the same access control as the fact store; ours trims it on commit. A later false statement can exploit newer-wins ordering, so one newer statement should not silently override a stable fact. We use public benchmark and synthetic dialogues only.
 
 # 10 Conclusion
 
@@ -303,9 +270,9 @@ Moving fact extraction off the write path makes a memory system fast to acknowle
 
 # A Additional tables
 
-Table 4 gives the latency measurements, Table 5 the non-update regression by question type, Table 6 the full MemConflict results per reader, and Table 7 the same answers re-scored on the questions both auditors call clean.
+Table 3 gives the latency measurements, Table 6 the Mem0 results per reader, Table 4 the non-update regression by question type, Table 5 the full MemConflict results per reader, and Table 7 the same answers re-scored on the questions the first two auditors call clean. Table 8 gives the read-path ablations and the reordering check, Table 9 the gemma4 temporal probes, and Table 10 the agreement between judges from two model families.
 
-**Table 4.** Wall-clock latency (ms) on the real stack (Redpanda, Redis, PostgreSQL/pgvector, local qwen3-embedding:0.6b embeddings), 10 dev questions at lag 3; write ack over 416 sessions, read paths exclude the reader decode. B1 acknowledges only after synchronous extraction (recorded live time of the local 12B extractor on the dev split), embedding and upsert; B2 after the broker ack; DeltaWAL after the Redis WAL write-through and broker ack. Cold = the WAL tail is embedded at read time; Lazy runs a live extraction call per query; `emb.' = the query embedding. DeltaWAL-Versioned uses the DeltaWAL read path. For reference, the cloud extractor used for all evaluated sets took 4.26 s per session at the median (7.63 s p95; 9,707 live calls logged during concurrent batch extraction).
+**Table 3.** Wall-clock latency (ms) on the real stack (Redpanda, Redis, PostgreSQL/pgvector, local qwen3-embedding:0.6b embeddings), 10 dev questions at lag 3; write ack over 416 sessions, read paths exclude the reader decode. B1 acknowledges only after synchronous extraction (recorded live time of the local 12B extractor on the dev split), embedding and upsert; B2 after the broker ack; DeltaWAL after the Redis WAL write-through and broker ack. Cold = the WAL tail is embedded at read time; Lazy runs a live extraction call per query; `emb.' = the query embedding. DeltaWAL-Versioned uses the DeltaWAL read path. For reference, the cloud extractor used for all evaluated sets took 4.26 s per session at the median (7.63 s p95; 9,707 live calls logged during concurrent batch extraction).
 
 | System | Write ack p50 | Write ack p95 | Read path incl. emb. p50 | Read path incl. emb. p95 | Read path excl. emb. p50 | Read path excl. emb. p95 |
 |---|---|---|---|---|---|---|
@@ -318,7 +285,7 @@ Table 4 gives the latency measurements, Table 5 the non-update regression by q
 | Lazy | 2.67 | 7.34 | 3,711 | 9,441 | 3,699 | 9,430 |
 
 
-**Table 5.** Non-update regression: 60 LongMemEval-S questions disjoint from the held-out set. The extractor sees assistant turns truncated to 300 characters, so fact-only memories rarely contain assistant-provided details (SS-assistant); DeltaWAL recovers them from the raw WAL turn when the session is in flight. SS-preference uses LongMemEval's rubric grading. glm-5.3 was run only on the B1 and DeltaWAL-Versioned cells.
+**Table 4.** Non-update regression: 60 LongMemEval-S questions disjoint from the held-out set. The extractor sees assistant turns truncated to 300 characters, so fact-only memories rarely contain assistant-provided details (SS-assistant); DeltaWAL recovers them from the raw WAL turn when the session is in flight. SS-preference uses LongMemEval's rubric grading. glm-5.3 was run only on the B1 and DeltaWAL-Versioned cells.
 
 | System | Lag | All (n=60) | Multi-session (n=30) | SS-user (n=10) | SS-assistant (n=10) | SS-preference (n=10) | Tokens |
 |---|---|---|---|---|---|---|---|
@@ -340,7 +307,7 @@ Table 4 gives the latency measurements, Table 5 the non-update regression by q
 | DeltaWAL-Versioned | 1 | 80.0 [70, 90] | 73.3 [57, 90] | 90.0 [70, 100] | 80.0 [50, 100] | 90.0 [70, 100] | 1375 |
 
 
-**Table 6.** MemConflict (90 questions, 30/30/30 dynamic/static/conditional). A pre-evaluation audit of 30 questions sampled from the whole pool (LLM reading agent) found 29/30 clean; the later full audit of these evaluated questions found fewer and misses the ≥85% gate (Section 5.3, Table 7). `Static: believed false' = static questions answered with the later, false statement. In the async cells the false statement sits in the in-flight session, which B2/B3 never see.
+**Table 5.** MemConflict (90 questions, 30/30/30 dynamic/static/conditional). A pre-evaluation audit of 30 questions sampled from the whole pool (LLM reading agent) found 29/30 clean; the later full audit of these evaluated questions found fewer and misses the ≥85% gate (Section 5.3, Table 7). `Static: believed false' = static questions answered with the later, false statement. In the async cells the false statement sits in the in-flight session, which B2/B3 never see.
 
 | System | Lag | All (n=90) | Dynamic (n=30) | Static (n=30) | Conditional (n=30) | Static: believed false statement |
 |---|---|---|---|---|---|---|
@@ -364,7 +331,33 @@ Table 4 gives the latency measurements, Table 5 the non-update regression by q
 | DeltaWAL-Versioned | 1 | 45.6 [34, 56] | 56.7 [40, 73] | 26.7 [10, 43] | 53.3 [33, 73] | 63.3 [43, 80] |
 
 
-**Table 7.** MemConflict re-scored on the 70 of 90 evaluated questions that both raters found clean (Appendix B). Same judged answers as Table 6; only the question set changes.
+**Table 6.** Mem0 OSS 1.0.11 (classic ADD/UPDATE/DELETE write path) on the 60 held-out knowledge-update questions. Mem0 sync ingests every session; Mem0 async leaves the final (update) session in flight; Mem0 + DeltaWAL adds the epoch-tagged WAL and relevance gate (τ=0.35) on top of the async store. The history hook renders, for every retrieved memory, its earlier versions from `Memory.history()` in epoch order. On the 13 KU-past questions Mem0 updated the older evidence memory in place in 11 and deleted it in 0; the old value survived only in the history table in 5.
+
+| System | Lag | KU (n=60) | KU-past (n=13) | KU-current (n=47) | Stale (%) |
+|---|---|---|---|---|---|
+| *Reader: gemma4 (12B, local)* |  |  |  |  |  |
+| Mem0 sync | 0 | 76.7 [65, 87] | 46.2 [23, 69] | 85.1 [74, 94] | 6.7 |
+| Mem0 async | 1 | 10.0 [3, 18] | 46.2 [23, 77] | 0.0 [0, 0] | 66.7 |
+| Mem0 + DeltaWAL | 1 | 91.7 [83, 98] | 92.3 [77, 100] | 91.5 [83, 98] | 6.7 |
+| Mem0 sync + history hook | 0 | 91.7 [85, 98] | 100.0 [100, 100] | 89.4 [81, 98] | 6.7 |
+| *Reader: gpt-6-luna (cloud)* |  |  |  |  |  |
+| Mem0 sync | 0 | 76.7 [65, 87] | 53.8 [31, 77] | 83.0 [72, 94] | 6.7 |
+| Mem0 async | 1 | 11.7 [5, 20] | 53.8 [31, 85] | 0.0 [0, 0] | 63.3 |
+| Mem0 + DeltaWAL | 1 | 96.7 [92, 100] | 100.0 [100, 100] | 95.7 [89, 100] | 1.7 |
+| Mem0 sync + history hook | 0 | 88.3 [80, 97] | 100.0 [100, 100] | 85.1 [74, 94] | 6.7 |
+| *Reader: glm-5.3 (frontier, cloud)* |  |  |  |  |  |
+| Mem0 sync | 0 | 76.7 [65, 87] | 46.2 [23, 69] | 85.1 [74, 94] | 5.0 |
+| Mem0 + DeltaWAL | 1 | 96.7 [92, 100] | 100.0 [100, 100] | 95.7 [89, 100] | 0.0 |
+| Mem0 sync + history hook | 0 | 91.7 [85, 98] | 100.0 [100, 100] | 89.4 [81, 98] | 5.0 |
+
+| Mem0 history events (60 questions) | ADD | UPDATE | DELETE |
+|---|---|---|---|
+| sessions 1..T-1 (async view) | 6913 | 152 | 3 |
+| sessions 1..T (sync view) | 7125 | 265 | 5 |
+| KU-past subset, sessions 1..T (n=13) | 1539 | 52 | 0 |
+
+
+**Table 7.** MemConflict re-scored on the 70 of 90 evaluated questions that both raters found clean (Appendix B). Same judged answers as Table 5; only the question set changes.
 
 | System | Lag | All (n=70) | Dynamic (n=27) | Static (n=17) | Conditional (n=26) | Static: believed false statement |
 |---|---|---|---|---|---|---|
@@ -388,29 +381,79 @@ Table 4 gives the latency measurements, Table 5 the non-update regression by q
 | DeltaWAL-Versioned | 1 | 51.4 [39, 63] | 63.0 [44, 81] | 17.6 [0, 35] | 61.5 [42, 81] | 64.7 [41, 88] |
 
 
+**Table 8.** Read-path ablations of DeltaWAL-Versioned at lag 1 on the 138 held-out questions (accuracy, %; All, knowledge-update, temporal), each changing one factor, and the full system under reordering. The no-gate and recency variants fill the same token budget as the gated prompt (mean prompt within 1% of full DeltaWAL-V.); the recency variant uses the trailing user turns of the conversation, as B3, rendered with epoch tags, dates and the precedence instruction. Gate recall (an update-session turn passes τ=0.35) is 60/60 at lags 1, 3 and 5. Bottom: B3 as in Table 1 (async in-place store, 1050-token budget, undated recent turns) and the same system with only session dates added to its recent turns.
+
+| Variant (lag 1) | gemma4 | glm-5.3 | gpt-6-luna |  |  |  |  |  |  |
+|---|---|---|---|---|---|---|---|---|---|
+|  | All | KU | TR | All | KU | TR | All | KU | TR |
+| Full DeltaWAL-V. | 73.9 | 88.3 | 48.1 | 91.3 | 96.7 | 86.5 | 88.4 | 93.3 | 80.8 |
+| No relevance gate (budget-matched tail) | 35.5 | 28.3 | 13.5 | 41.3 | 36.7 | 21.2 | 40.6 | 35.0 | 21.2 |
+| No precedence instruction | 72.5 | 86.7 | 46.2 | 92.0 | 96.7 | 86.5 | 87.0 | 91.7 | 80.8 |
+| No epoch tags (dates kept) | 72.5 | 78.3 | 53.8 | 90.6 | 95.0 | 84.6 | 85.5 | 86.7 | 82.7 |
+| Recency tail + tags + instruction | 68.8 | 80.0 | 42.3 | 83.3 | 91.7 | 69.2 | 78.3 | 83.3 | 65.4 |
+| Full, reordering p_ooo = 0.3 | 76.1 | 86.7 | 53.8 | 89.9 | 96.7 | 80.8 | 86.2 | 91.7 | 78.8 |
+| B3 (Table 1): undated recent turns | 58.0 | 63.3 | 32.7 | 66.7 | 80.0 | 38.5 | 63.8 | 71.7 | 40.4 |
+| B3 + session dates on recent turns | 57.2 | 58.3 | 36.5 | 71.0 | 75.0 | 55.8 | 68.1 | 68.3 | 55.8 |
+
+
+**Table 9.** gemma4 on the 52 temporal questions: prompt probes for the lag-1 drop. Wins/losses and exact McNemar p are paired against DeltaWAL-V. at lag 1 (judge: qwen3.8-flash).
+
+| Prompt | Temporal | Wins/losses vs. lag 1 | p |
+|---|---|---|---|
+| DeltaWAL-V., lag 0 | 65.4 [52, 77] | 10/1 | 0.012 |
+| DeltaWAL-V., lag 1 | 48.1 [35, 62] | – | – |
+| lag 1, uncached re-run | 50.0 [37, 63] | 1/0 | 1.000 |
+| lag 0, padded to the lag-1 prompt length | 67.3 [54, 79] | 11/1 | 0.006 |
+| lag 1, tail dated as "message sent on" | 57.7 [44, 71] | 6/1 | 0.125 |
+| lag 1, tail placed before the facts | 57.7 [44, 69] | 9/4 | 0.267 |
+| lag 1, no precedence instruction | 46.2 [33, 60] | 2/3 | 1.000 |
+
+
+**Table 10.** Agreement of the qwen3.8-flash judge with a second judge from another model family (claude-haiku-5-5) on every judged answer in the paper, with identical judge prompts. Stale = wrong and using the superseded value (KU rows; static false belief for MemConflict).
+
+| Rows | n | Agree correct (%) | kappa correct | kappa stale |
+|---|---|---|---|---|
+| LongMemEval-S held-out grid | 8004 | 98.2 | 0.96 | 0.99 |
+| DeltaWAL-V. cells | 1380 | 98.3 | 0.94 | 1.00 |
+| Controls | 828 | 97.6 | 0.91 | 1.00 |
+| Non-update regression | 780 | 96.7 | 0.93 | – |
+| Mem0 | 480 | 98.5 | 0.97 | 1.00 |
+| Mem0 history hook | 39 | 94.9 | 0.00 | 1.00 |
+| MemConflict | 1350 | 94.8 | 0.90 | 0.95 |
+| All judged rows | 12861 | 97.7 | 0.95 | 0.99 |
+
+
+![Figure 4](figures/preview/fig3_destructive_symmetry.png)
+
+**Figure 4.** History erasure on the 13 KU-past questions. (a) Write-side overwrite (B1 sync and Mem0 sync, lag 0) and read-side masking (Shadow, lag 1) give similar KU-past accuracy; DeltaWAL-Versioned (lag 1) keeps older versions. Error bars are 95% bootstrap intervals. (b) Shadow threshold sweep for gemma4, pooled over five async cells: KU-past accuracy rises from 15.4% to 84.6% as masking is relaxed and switched off; KU-current stays near 89.8%. Bands resample questions as clusters; the dashed line marks the frozen θ=0.72.
+
 # B MemConflict audit
 
 #### Procedure.
 
-Every evaluated question was audited blind to all model outputs: a rater saw only the question, the gold answer, the construction record and the evidence sessions (user turns in full, assistant turns truncated), and had to support each verdict with verbatim dialogue quotes. A question is *clean* if the user’s own statements support the gold as worded, the value is about the user, and, for static items, the later statement genuinely contradicts the earlier one; *ambiguous* if a careful reader could defend another answer or the planted conflict is not a real contradiction; a *label error* if the gold is unsupported or belongs to someone else. The rubric is reproduced in Appendix C. Two raters, built on different LLMs, audited every question independently, and neither saw the other’s verdicts. Their verdicts were frozen before being joined with any model output. Table 8 gives the counts and Table 9 lists the excluded questions.
+Every evaluated question was audited blind to all model outputs: a rater saw only the question, the gold answer, the construction record and the evidence sessions (user turns in full, assistant turns truncated), and had to support each verdict with verbatim dialogue quotes, which we checked against the dialogue. A question is *clean* if the user’s own statements support the gold as worded, the value is about the user, and, for static items, the later statement genuinely contradicts the earlier one; *ambiguous* if a careful reader could defend another answer or the planted conflict is not a real contradiction; a *label error* if the gold is unsupported or belongs to someone else. The rubric is reproduced in Appendix C. Four raters audited every question independently: R1 and R2 on Claude models, R3 on a GPT model (Codex CLI) and R4 on a Gemini model (Antigravity CLI), the last two in sandboxes with no file or network access beyond the question packets. No rater saw another’s verdicts, and each set of verdicts was frozen (and, for R3 and R4, hashed) before being joined with the others or with any model output. Table 11 gives the counts and Table 12 lists the questions excluded from the main clean set.
 
 #### Findings.
 
-The raters agree on 88.9% of questions (Cohen’s $\kappa=0.600$); every disagreement is between *clean* and *ambiguous*, so no question one rater calls clean is a label error for the other. Outright label errors are rare; most flagged items are static conflicts whose later statement does not logically contradict the earlier one (a lower degree does not refute a higher one as “highest degree”, records listing a mother as unknown do not refute having one) or is voiced only by the assistant. The pre-registered gate of 85% clean fails for each rater and for their intersection, and we report it as failed.
+R1 and R2 agree on 88.9% of questions (Cohen’s $\kappa=0.600$); pairwise $\kappa$ over all four raters ranges from 0.551 to 0.724 (the two non-Claude raters agree most) and Fleiss’ $\kappa$ is 0.625. The new raters are stricter: of the 70 questions R1 and R2 both call clean, 59 are clean for all four. Outright label errors are rare; most flagged items are static conflicts whose later statement does not logically contradict the earlier one (a lower degree does not refute a higher one as “highest degree”, records listing a mother as unknown do not refute having one) or is voiced only by the assistant. The pre-set gate of 85% clean fails for every rater, and we report it as failed.
 
-By type, 27 of 30 dynamic, 17 of 30 static and 26 of 30 conditional questions are clean for both raters (Table 8); the clean re-scoring in Table 7 keeps these 70 questions.
+By type, 27 of 30 dynamic, 17 of 30 static and 26 of 30 conditional questions are clean for R1 and R2 (Table 11); the clean re-scoring in Table 7 keeps these 70 questions. On the stricter set of 59 questions all four raters call clean, the static comparison keeps its direction but is not significant under the GPT-family labels (Section 5.3).
 
-**Table 8.** MemConflict audit of the evaluated split: questions rated clean by rater 1 (R1), rater 2 (R2, a different model) and by both, and questions either rater calls a label error.
+#### Static answers relabelled.
 
-| Type | n | Clean (R1) | Clean (R2) | Clean (both) | Label error (either rater) |
-|---|---|---|---|---|---|
-| Dynamic | 30 | 27 | 28 | 27 | 1 |
-| Static | 30 | 20 | 20 | 17 | 0 |
-| Conditional | 30 | 29 | 26 | 26 | 0 |
-| All | 90 | 76 | 74 | 70 | 1 |
+To check the judge’s static rubric, a GPT-family model labelled the answers of B1 and DeltaWAL-Versioned (lag 0) on the clean static questions (51 per system, over three readers) as giving the true value, the false value, both, or neither, blind to which system produced it. Under these labels DeltaWAL-Versioned believes the false statement more often by 15.7 points (permutation $p=0.181$), against 21.6 under the judge.
+
+**Table 11.** MemConflict audit of the evaluated split: questions rated clean by each blind rater (R1 and R2 on Claude models, R3 on a GPT model via Codex CLI, R4 on a Gemini model via Antigravity), by R1 and R2 (the set used in Table 7) and by all four. Fleiss' kappa (clean vs. not clean) is 0.625.
+
+| Type | n | R1 | R2 | R3 | R4 | R1 and R2 (main set) | All four raters |
+|---|---|---|---|---|---|---|---|
+| Dynamic | 30 | 27 | 28 | 27 | 22 | 27 | 22 |
+| Static | 30 | 20 | 20 | 14 | 17 | 17 | 13 |
+| Conditional | 30 | 29 | 26 | 26 | 24 | 26 | 24 |
+| All | 90 | 76 | 74 | 67 | 63 | 70 | 59 |
 
 
-**Table 9.** The 20 evaluated MemConflict questions that are not rated clean by both raters; they are excluded in the clean re-scoring (Table 7).
+**Table 12.** The 20 evaluated MemConflict questions that are not rated clean by both raters; they are excluded in the clean re-scoring (Table 7).
 
 | Question id | Type | Rater 1 | Rater 2 |
 |---|---|---|---|

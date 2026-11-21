@@ -1,0 +1,6 @@
+# Latency-only override: Redis with an fsync'd append-only file, so a WAL write is on disk before the ack.
+#   docker compose -f docker-compose.yml -f docker-compose.durable.yml up -d --wait redis   # durable
+#   docker compose up -d --wait redis                                                       # restore default
+services:
+  redis:
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--save", ""]

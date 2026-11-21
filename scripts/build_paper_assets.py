@@ -46,8 +46,17 @@ RUN_GROUPS = {
     "unified": {"gemma4": "m2uni_gemma", "glm-5.3": "m2uni_glm", "gpt-6-luna": "m2uni_luna6"},
     "regression60": {"gemma4": "m3r60_gemma", "gpt-6-luna": "m3r60_luna6", "glm-5.3": "m3r60_glm"},
     "mem0": {"gemma4": "m3mem0_gemma", "gpt-6-luna": "m3mem0_luna6", "glm-5.3": "m3mem0_glm"},
-    "mem0hist": {"gemma4": "m4mem0hist_gemma", "gpt-6-luna": "m4mem0hist_luna6", "glm-5.3": "m4mem0hist_glm"},
+    # history hook on all 60 KU questions (its 13 KU-past rows are identical to the earlier m4mem0hist_* runs)
+    "mem0hist": {"gemma4": "m6hook60_gemma", "gpt-6-luna": "m6hook60_luna6", "glm-5.3": "m6hook60_glm"},
     "memconflict": {"gemma4": "m3mc_gemma", "gpt-6-luna": "m3mc_luna6", "glm-5.3-flash": "m3mc_glmflash"},
+    # read-path ablations of DeltaWAL-Versioned at lag 1 (src/epochmem/systems/ablations.py)
+    "ablation": {"gemma4": "m6abl_gemma", "gpt-6-luna": "m6abl_luna6", "glm-5.3": "m6abl_glm"},
+    # DeltaWAL-Versioned under reordering (p_ooo = 0.3, lags 1 and 3)
+    "reorder": {"gemma4": "m6ooo_gemma", "gpt-6-luna": "m6ooo_luna6", "glm-5.3": "m6ooo_glm"},
+    # gemma4 temporal probes (uncached re-run, padded lag 0, sent-date tail, no precedence, tail first)
+    "temporal_probe": {"gemma4": "m6temp_gemma"},
+    # Table 1 B3 exactly (async LWW index, 1,050-token budget, no tags/precedence) with session dates on raw turns
+    "b3dated": {"gemma4": "m6b3d_gemma", "gpt-6-luna": "m6b3d_luna6", "glm-5.3": "m6b3d_glm"},
 }
 ROW_FIELDS = ["qid", "qtype", "is_abstention", "system", "lag", "p_ooo", "correct", "abstained", "uses_superseded",
               "prompt_tokens", "oocr_updated", "oocr_corrupted", "missed_merge", "cas_rejections",
@@ -60,6 +69,9 @@ SOURCES = {
     "sensitivity_rows": "sensitivity_shadow_heldout_rows.jsonl",
     "mem0_ku_past": "m3mem0_luna6/mem0_ku_past.jsonl",
     "memconflict_audit": "memconflict_audit30.txt",
+    "latency_rerun_nondurable": "bench_latency_nondurable_rerun.json",
+    "latency_durable": "bench_latency_durable.json",
+    "mem0_ku_past_resolved": "mem0_ku_past_resolved.json",
 }
 
 
@@ -120,9 +132,49 @@ def collect() -> dict:
         shas["runs/memconflict_audit90_r2.jsonl"] = _sha(a90r2)
         audit90_r2 = sorted(({"qid": r["qid"], "type": r["type"], "verdict": r["verdict"]} for r in _jsonl(a90r2)),
                             key=lambda r: r["qid"])
+    # extra blind raters from other model families (R3 Codex/GPT, R4 agy/Gemini); same packets and rubric
+    audit_extra = {}
+    for tag, f in (("r3", "memconflict_audit90_r3_codex.jsonl"), ("r4", "memconflict_audit90_r4_agy.jsonl")):
+        if (RUNS / f).exists():
+            shas[f"runs/{f}"] = _sha(RUNS / f)
+            audit_extra[tag] = sorted(({"qid": r["qid"], "type": r["type"], "verdict": r["verdict"]}
+                                       for r in _jsonl(RUNS / f)), key=lambda r: r["qid"])
+    # second-family judge (claude-haiku-5-5) on every judged row; verdicts only
+    rj = RUNS / "rejudge_haiku" / "rows.jsonl"
+    rejudge = []
+    if rj.exists():
+        shas["runs/rejudge_haiku/rows.jsonl"] = _sha(rj)
+        rejudge = sorted(([r["group"], r["reader"], r["qid"], r["system"], r["lag"], r["p_ooo"],
+                           int(bool(r["haiku"]["correct"])), int(bool(r["haiku"]["abstained"])),
+                           int(bool(r["haiku"]["uses_superseded"]))] for r in _jsonl(rj)))
+    # Codex (GPT family) labels: blind static-answer labels and the 50-row judge check
+    sl = RUNS / "memconflict_static_labels_codex.jsonl"
+    static_labels = []
+    if sl.exists():
+        shas[f"runs/{sl.name}"] = _sha(sl)
+        static_labels = _jsonl(sl)
+    jc = RUNS / "judge_check50_codex.csv"
+    judge50 = []
+    if jc.exists():
+        import csv
+        shas[f"runs/{jc.name}"] = _sha(jc)
+        ref = {r["audit_id"]: r for r in csv.DictReader((RUNS / "human_audit_50.csv").open(encoding="utf-8"))}
+        judge50 = [{"audit_id": r["audit_id"], "qid": r["qid"], "stratum": r["stratum"],
+                    **{f"codex_{k}": r[f"codex_{k}"] == "True" for k in ("correct", "abstained", "uses_superseded")},
+                    **{f"judge_{k}": ref[r["audit_id"]][f"judge_{k}"] == "True"
+                       for k in ("correct", "abstained", "uses_superseded")}}
+                   for r in csv.DictReader(jc.open(encoding="utf-8"))]
+        static_labels = [{k: r[k] for k in ("qid", "run", "system", "lag", "label")} for r in static_labels]
     return {
         "schema": 1,
         "rows": rows,
+        "memconflict_audit90_extra": audit_extra,
+        "rejudge_haiku": rejudge,
+        "memconflict_static_labels_codex": static_labels,
+        "judge_check50_codex": judge50,
+        "latency_durable": {"nondurable_rerun": json.loads((RUNS / SOURCES["latency_rerun_nondurable"]).read_text(encoding="utf-8")),
+                            "durable": json.loads((RUNS / SOURCES["latency_durable"]).read_text(encoding="utf-8"))},
+        "mem0_ku_past_resolved": json.loads((RUNS / SOURCES["mem0_ku_past_resolved"]).read_text(encoding="utf-8"))["resolved"],
         "sensitivity": sens,
         "latency": json.loads((RUNS / SOURCES["latency"]).read_text(encoding="utf-8")),
         "extractor_latency": extractor_latency(),
@@ -246,6 +298,50 @@ def pct(k, n):
     return round(100 * k / n, 2) if n else None
 
 
+# ---------------------------------------------------------------- paired tests
+def mcnemar_exact(b: int, c: int) -> float:
+    """Two-sided exact McNemar (binomial on the discordant pairs)."""
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    return min(1.0, 2 * sum(math.comb(n, i) for i in range(k + 1)) / 2 ** n)
+
+
+def paired(a_rows, b_rows, f=lambda r: r["correct"]) -> dict:
+    """Paired comparison of two cells on the same questions (joined on qid): A-only / B-only wins, exact McNemar."""
+    A, B = {r["qid"]: bool(f(r)) for r in a_rows}, {r["qid"]: bool(f(r)) for r in b_rows}
+    q = sorted(set(A) & set(B))
+    b = sum(A[k] and not B[k] for k in q)
+    c = sum(B[k] and not A[k] for k in q)
+    return {"n": len(q), "a_pct": pct(sum(A[k] for k in q), len(q)), "b_pct": pct(sum(B[k] for k in q), len(q)),
+            "diff_pp": round(100 * (b - c) / len(q), 2) if q else None, "a_only": b, "b_only": c,
+            "p_mcnemar": round(mcnemar_exact(b, c), 4)}
+
+
+def paired_pooled(pairs: list[tuple[list, list]], f=lambda r: r["correct"], iters=10000, seed=42) -> dict:
+    """Pooled over readers: per-reader cells are paired on qid; the p-value is a sign-flip permutation test with
+    the question as the unit (all readers' differences on a question flip together)."""
+    dq = defaultdict(int)
+    b = c = n = 0
+    sa = sb = 0
+    for a_rows, b_rows in pairs:
+        A, B = {r["qid"]: bool(f(r)) for r in a_rows}, {r["qid"]: bool(f(r)) for r in b_rows}
+        for k in sorted(set(A) & set(B)):           # sorted: set order varies with hash seeding
+            dq[k] += int(A[k]) - int(B[k])
+            b += A[k] and not B[k]
+            c += B[k] and not A[k]
+            sa += A[k]
+            sb += B[k]
+            n += 1
+    d = [dq[k] for k in sorted(dq)]
+    obs = abs(sum(d))
+    rng = random.Random(seed)
+    hits = sum(abs(sum(x if rng.random() < 0.5 else -x for x in d)) >= obs for _ in range(iters)) if obs else iters
+    return {"n": n, "a_pct": pct(sa, n), "b_pct": pct(sb, n), "diff_pp": round(100 * (b - c) / n, 2) if n else None,
+            "a_only": b, "b_only": c, "p_perm": round(hits / iters, 4)}
+
+
 # ============================================================================================ LaTeX
 def tex_escape(s: str) -> str:
     return (s.replace("\\", r"\textbackslash{}").replace("_", r"\_").replace("%", r"\%").replace("&", r"\&")
@@ -359,36 +455,43 @@ class Builder:
     # ---------------------------------------------------------------- Table 2
     def tab2(self) -> str:
         cfg = self.s["config"]
-        # (a) write side
+        # (a) write side: 2x2 store (in-place vs append-only) x prompt (plain vs epoch-tagged + precedence), lag 0
         da = self.s["forensics"]["destructive_overwrite_qids"]
-        body_a, tot = [], {"B1_sync": 0, "deltawal_versioned": 0}
-        n_destr = sum(len(v) for v in da.values())
-        for reader in ["gemma4", "glm-5.3", "gpt-6-luna"]:
-            U = self.R["unified"][reader]
-            H = self.R["heldout"][reader]
-            for system, src in (("B1_sync", H), ("deltawal_versioned", U)):
-                rs = cell(src, system, 0)
+        rd3 = ["gemma4", "glm-5.3", "gpt-6-luna"]
+        spec_a = [("in-place", "plain (B1)", "B1_sync", "heldout"),
+                  ("in-place", "epoch tags (DeltaWAL prompt)", "deltawal_prompt", "controls"),
+                  ("append-only", "epoch tags (B1 versioned)", "B1_sync_versioned", "controls"),
+                  ("append-only", "epoch tags (DeltaWAL-V.)", "deltawal_versioned", "unified")]
+        body_a = []
+        for store, prompt, system, grp in spec_a:
+            per, kp_all, kc_all = {}, [], []
+            for reader in rd3:
+                rs = cell(self.R[grp][reader], system, 0)
                 kp = [r for r in rs if is_ku(r) and r["ku_past"]]
                 kc = [r for r in rs if is_ku(r) and not r["ku_past"]]
                 q = set(da.get(reader, []))
-                ok = sum(1 for r in rs if r["qid"] in q and r["correct"])
-                if q:
-                    tot[system] += ok
                 st = {"KU_past": stat(kp), "KU_current": stat(kc),
-                      "destructive_cases": {"correct": ok, "n": len(q)} if q else None}
+                      "destructive_cases": {"correct": sum(1 for r in rs if r["qid"] in q and r["correct"]), "n": len(q)}
+                      if q else None}
                 self.rec(f"tab2a/{reader}/{system}", st)
-                cases = f"{ok}/{len(q)}" if q else "--"
-                body_a.append(f"{READER_DESC[reader]} & {'B1 sync, mutable' if system == 'B1_sync' else 'DeltaWAL-V., versioned'}"
-                              f" & {tci(st['KU_past'])} & {tci(st['KU_current'])} & {cases} \\\\")
+                per[reader] = st
+                kp_all += kp
+                kc_all += kc
+            pooled = {"KU_past": stat(kp_all, cluster=True), "KU_current": stat(kc_all, cluster=True)}
+            self.rec(f"tab2a/pooled/{system}", pooled)
+            body_a.append(f"{store} & {prompt} & {tci(pooled['KU_past'])} & "
+                          + " / ".join(tnum(per[rd]["KU_past"]["mean"]) for rd in rd3)
+                          + f" & {tci(pooled['KU_current'])} \\\\")
+        tot = {s: sum((self.M[f"tab2a/{rd}/{s}"]["destructive_cases"] or {}).get("correct", 0) for rd in rd3)
+               for s in ("B1_sync", "deltawal_versioned")}
+        n_destr = sum(len(v) for v in da.values())
         self.rec("tab2a/destructive_cases_combined", {"mutable": {"correct": tot["B1_sync"], "n": n_destr},
                                                       "versioned": {"correct": tot["deltawal_versioned"], "n": n_destr}})
-        body_a.append("\\midrule")
-        body_a.append(f"\\multicolumn{{4}}{{l}}{{Destructive-overwrite cases, cloud readers combined (mutable $\\to$ versioned)}}"
-                      f" & {tot['B1_sync']}/{n_destr} $\\to$ {tot['deltawal_versioned']}/{n_destr} \\\\")
         nh = self.counts_heldout()
-        ta = tabular("llccc", ["Reader", "System and store (lag 0)", hdr2("KU-past", f"($n$={nh['KU_past']})"),
-                               hdr2("KU-current", f"($n$={nh['KU_current']})"), hdr2("Destructive", "cases")], body_a,
-                     title="(a) Write side: in-place overwrite vs.\\ append-only versions", ncols=5)
+        ta = tabular("llccc", ["Store", "Prompt", hdr2("KU-past, pooled", f"($n$={nh['KU_past']} per reader)"),
+                               hdr2("KU-past per reader", "(gemma4 / glm / gpt)"),
+                               hdr2("KU-current, pooled", f"($n$={nh['KU_current']} per reader)")], body_a,
+                     title="(a) Write side at lag 0: store policy and prompt format", ncols=5)
         # (b) read side
         sw, H = self.shadow_sweep(), None
         body_b = []
@@ -415,16 +518,19 @@ class Builder:
                       "all_questions_flagged": sum(bool(r["missed_merge"]) for r in rs), "all_questions": len(rs)}
                 self.rec(f"tab2c/lag{lag}/{system}", st)
                 body_c.append(f"{lag} & {policy} & {upd} & {cor} ({st['oocr_pct']:.1f}\\%) & {cas} & "
-                              f"{mm}/{len(rs)} ({st['missed_merge_pct']:.1f}\\%) \\\\")
+                              f"{mm}/{len(ku)} ({st['missed_merge_pct']:.1f}\\%) \\\\")
         tc = tabular("rlrrrr", ["Lag", "Store policy", hdr2("Updated", "keys"), hdr2("Corrupted", "keys (OOCR)"),
                                 hdr2("CAS", "rejections"), hdr2("KU questions with", "missed merge")], body_c,
                      title="(c) Store integrity under reordering ($p_\\text{ooo}=0.3$, store-level)", ncols=6)
-        cap = ("History ablations on the 138 held-out questions. (a) KU-past/comparative questions at lag 0 for B1 sync "
-               "(in-place store) and DeltaWAL-Versioned (append-only store, empty WAL; the lag-0 cells of "
-               "Table~\\ref{tab:main138}); destructive cases are the held-out failures that forensics attributed to an "
-               "overwritten key. (b) Shadow v2 masking threshold, pooled over the five "
-               "async cells (lag 1/3/5, $p_\\text{ooo}\\in\\{0, 0.3\\}$); `off' is the unmasked epoch-merge prompt on "
-               "the same cells; CIs resample questions. (c) Out-of-order corruption (an updated key left at an older "
+        cap = ("History ablations on the 138 held-out questions. (a) Store policy and prompt format at lag 0: "
+               "B1 sync (in-place, plain dated facts), the DeltaWAL prompt over its CAS store (in-place, epoch tags and "
+               "precedence instruction), B1 sync over an append-only store with the same kind of epoch-tagged prompt, "
+               "and DeltaWAL-Versioned (empty WAL); rows 2 and 3 differ only in the store, rows 1 and 2 only in the "
+               "prompt. Pooled CIs resample questions. (b) Shadow v2 masking threshold, pooled over the five "
+               "async cells (lag 1/3/5, $p_\\text{ooo}\\in\\{0, 0.3\\}$); re-run = question-cells whose set of masked "
+               "facts differs from the frozen threshold's and therefore needed a new reader call (the others keep the "
+               "frozen-threshold answer); `off' is the unmasked epoch-merge prompt on the same cells; CIs resample "
+               "questions. (c) Out-of-order corruption (an updated key left at an older "
                "epoch) vs.\\ missed merges, counted on the knowledge-update questions: the update's facts share no key "
                "with the earlier evidence, so no keyed policy can supersede the old value.")
         return table_env("tab:history", cap, [ta, tb, tc])
@@ -536,6 +642,14 @@ class Builder:
                                                                "gold_old_value_in_live_store",
                                                                "gold_old_value_only_in_history")}
         flags["n"] = len(kp)
+        # the 5 undetermined flags, resolved by searching the persisted stores (runs/mem0_ku_past_resolved.json)
+        res = self.s.get("mem0_ku_past_resolved") or {}
+        fin = {}
+        for r in kp:
+            fin[r["qid"]] = ("live" if r.get("gold_old_value_in_live_store") else
+                             "history_only" if r.get("gold_old_value_only_in_history") else
+                             res.get(r["qid"], {}).get("flag", "undetermined"))
+        flags["resolved"] = {k: sum(v == k for v in fin.values()) for k in ("live", "history_only", "undetermined")}
         self.rec("tab4/ku_past_flags", flags)
         b2 = [f"{label} & {v.get('ADD', 0)} & {v.get('UPDATE', 0)} & {v.get('DELETE', 0)} \\\\" for label, v in ev.items()]
         t2 = tabular("lrrr", ["Mem0 history events (60 questions)", "ADD", "UPDATE", "DELETE"], b2)
@@ -544,10 +658,10 @@ class Builder:
                f"knowledge-update questions. Mem0 sync ingests every session; Mem0 async leaves the final (update) "
                f"session in flight; Mem0 + DeltaWAL adds the epoch-tagged WAL and relevance gate "
                f"($\\tau={c['wal_sim_threshold']}$) on top of the async store. The history hook renders, for every "
-               f"retrieved memory, its earlier versions from \\texttt{{Memory.history()}} in epoch order (run on the "
-               f"KU-past questions only; $^\\ast$stale rate over those questions). On the {flags['n']} KU-past "
-               f"questions Mem0 updated the older evidence memory in place in {flags['old_value_updated_in_place']} "
-               f"and deleted it in {flags['old_value_deleted']}.")
+               f"retrieved memory, its earlier versions from \\texttt{{Memory.history()}} in epoch order. On the "
+               f"{flags['n']} KU-past questions Mem0 updated the older evidence memory in place in "
+               f"{flags['old_value_updated_in_place']} and deleted it in {flags['old_value_deleted']}; the old value "
+               f"survived only in the history table in {flags['resolved']['history_only']}.")
         return table_env("tab:mem0", cap, [t1, t2])
 
     # ---------------------------------------------------------------- Table 5
@@ -679,32 +793,334 @@ class Builder:
         return table_env("tab:memconflict_clean", cap, [tabular("lrccccc", hdr, body)])
 
     def tab8(self) -> str:
-        """Audit counts on the evaluated split: clean for rater 1, rater 2 (a different model) and both."""
+        """Audit counts on the evaluated split: four blind raters from three model families."""
         a1 = {r["qid"]: r for r in self.s.get("memconflict_audit90") or []}
         a2 = {r["qid"]: r["verdict"] for r in self.s.get("memconflict_audit90_r2") or []}
-        if not a1 or not a2:
+        ex = self.s.get("memconflict_audit90_extra") or {}
+        a3 = {r["qid"]: r["verdict"] for r in ex.get("r3", [])}
+        a4 = {r["qid"]: r["verdict"] for r in ex.get("r4", [])}
+        if not a1 or not a2 or not a3 or not a4:
             return "% audit data missing from the snapshot\n"
+        V = {"R1": {q: r["verdict"] for q, r in a1.items()}, "R2": a2, "R3": a3, "R4": a4}
         types = ("dynamic", "static", "conditional")
         rows, rec = [], {}
-        for t in types:
-            q = [k for k, r in a1.items() if r["type"] == t]
-            e = {"n": len(q), "clean_r1": sum(a1[k]["verdict"] == "clean" for k in q),
-                 "clean_r2": sum(a2[k] == "clean" for k in q),
-                 "clean_both": sum(a1[k]["verdict"] == "clean" and a2[k] == "clean" for k in q),
-                 "label_error_any": sum(a1[k]["verdict"] == "label_error" or a2[k] == "label_error" for k in q)}
+        for t in types + ("all",):
+            q = [k for k, r in a1.items() if t == "all" or r["type"] == t]
+            e = {"n": len(q), **{f"clean_{k.lower()}": sum(V[k][x] == "clean" for x in q) for k in V},
+                 "clean_r1r2": sum(V["R1"][x] == "clean" and V["R2"][x] == "clean" for x in q),
+                 "clean_all4": sum(all(V[k][x] == "clean" for k in V) for x in q),
+                 "clean_majority": sum(sum(V[k][x] == "clean" for k in V) >= 3 for x in q)}
             rec[t] = {"evaluated": e}
-            rows.append(f"{t.capitalize()} & {e['n']} & {e['clean_r1']} & {e['clean_r2']} & {e['clean_both']} & "
-                        f"{e['label_error_any']} \\\\")
-        rec["all"] = {"evaluated": {k: sum(rec[t]["evaluated"][k] for t in types) for k in rec["dynamic"]["evaluated"]}}
-        e = rec["all"]["evaluated"]
-        rows += ["\\midrule", f"All & {e['n']} & {e['clean_r1']} & {e['clean_r2']} & {e['clean_both']} & "
-                               f"{e['label_error_any']} \\\\"]
-        rec["static_evaluated_clean_both_pct"] = pct(rec["static"]["evaluated"]["clean_both"], rec["static"]["evaluated"]["n"])
+            if t == "all":
+                rows.append("\\midrule")
+            rows.append(f"{t.capitalize()} & {e['n']} & {e['clean_r1']} & {e['clean_r2']} & {e['clean_r3']} & "
+                        f"{e['clean_r4']} & {e['clean_r1r2']} & {e['clean_all4']} \\\\")
+        rec["static_evaluated_clean_both_pct"] = pct(rec["static"]["evaluated"]["clean_r1r2"], rec["static"]["evaluated"]["n"])
+        for t in types:                                    # keep the earlier key names used in the text
+            rec[t]["evaluated"]["clean_both"] = rec[t]["evaluated"]["clean_r1r2"]
+        q = sorted(a1)
+        bin_ = {k: [V[k][x] == "clean" for x in q] for k in V}
+
+        def kap(x, y):
+            n = len(x)
+            po = sum(a == b for a, b in zip(x, y)) / n
+            pa, pb = sum(x) / n, sum(y) / n
+            pe = pa * pb + (1 - pa) * (1 - pb)
+            return round((po - pe) / (1 - pe), 3)
+        pairs = {f"{a}_{b}": kap(bin_[a], bin_[b]) for i, a in enumerate(V) for b in list(V)[i + 1:]}
+        # Fleiss' kappa, binary
+        N, m = len(q), len(V)
+        nij = [[sum(bin_[k][i] for k in V), m - sum(bin_[k][i] for k in V)] for i in range(N)]
+        P = [(sum(c * c for c in row) - m) / (m * (m - 1)) for row in nij]
+        pj = [sum(row[j] for row in nij) / (N * m) for j in (0, 1)]
+        pe = sum(x * x for x in pj)
+        rec["kappa_pairs"] = pairs
+        rec["kappa_fleiss4"] = round((sum(P) / N - pe) / (1 - pe), 3)
         self.rec("tab8", rec)
-        hdr = ["Type", "$n$", "Clean (R1)", "Clean (R2)", "Clean (both)", hdr2("Label error", "(either rater)")]
-        cap = ("MemConflict audit of the evaluated split: questions rated clean by rater~1 (R1), rater~2 (R2, a "
-               "different model) and by both, and questions either rater calls a label error.")
-        return table_env("tab:memconflict_audit", cap, [tabular("lrrrrr", hdr, rows)])
+        hdr = ["Type", "$n$", "R1", "R2", "R3", "R4", hdr2("R1 and R2", "(main set)"), hdr2("All four", "raters")]
+        cap = ("MemConflict audit of the evaluated split: questions rated clean by each blind rater (R1 and R2 on "
+               "Claude models, R3 on a GPT model via Codex CLI, R4 on a Gemini model via Antigravity), by R1 and R2 "
+               "(the set used in Table~\\ref{tab:memconflict_clean}) and by all four. Fleiss' $\\kappa$ (clean vs.\\ "
+               f"not clean) is {rec['kappa_fleiss4']:.3f}.")
+        return table_env("tab:memconflict_audit", cap, [tabular("lrrrrrrr", hdr, rows)])
+
+    # ---------------------------------------------------------------- paired tests and second-judge robustness
+    def _haiku(self, group, reader, rows):
+        """The same rows with the second-family judge's verdicts (claude-haiku-5-5)."""
+        if not hasattr(self, "_hz"):
+            self._hz = {(g, rd, q, s, l, float(p or 0.0)): (c, a, u)
+                        for g, rd, q, s, l, p, c, a, u in self.s.get("rejudge_haiku") or []}
+        out = []
+        for r in rows:
+            v = self._hz.get((group, reader, r["qid"], r["system"], r["lag"], float(r["p_ooo"] or 0.0)))
+            if v is None:
+                return None
+            out.append({**r, "correct": bool(v[0]), "abstained": bool(v[1]), "uses_superseded": bool(v[2])})
+        return out
+
+    def _clean70(self):
+        a1 = {r["qid"]: r["verdict"] for r in self.s.get("memconflict_audit90") or []}
+        a2 = {r["qid"]: r["verdict"] for r in self.s.get("memconflict_audit90_r2") or []}
+        return {q for q in a1 if a1[q] == "clean" and a2.get(q) == "clean"}
+
+    def tests(self) -> None:
+        R, rd3 = self.R, ["gemma4", "glm-5.3", "gpt-6-luna"]
+        U = lambda rd, s, l, p=0.0: cell(R["unified"][rd], s, l, p)            # noqa: E731
+        H = lambda rd, s, l, p=0.0: cell(R["heldout"][rd], s, l, p)            # noqa: E731
+        C = lambda rd, s, l: cell(R["controls"][rd], s, l)                     # noqa: E731
+        ku = lambda rs: [r for r in rs if is_ku(r)]                            # noqa: E731
+        kp = lambda rs: [r for r in rs if is_ku(r) and r["ku_past"]]           # noqa: E731
+        kc = lambda rs: [r for r in rs if is_ku(r) and not r["ku_past"]]       # noqa: E731
+        tr = lambda rs: [r for r in rs if is_tr(r)]                            # noqa: E731
+
+        def both(name, pairs, f=lambda r: r["correct"], groups=None):
+            """Per-reader exact McNemar + pooled permutation; optionally the same under the haiku judge."""
+            out = {rd: paired(a, b, f) for rd, (a, b) in pairs.items()}
+            out["pooled"] = paired_pooled(list(pairs.values()), f)
+            if groups:
+                hz = {}
+                for rd, (a, b) in pairs.items():
+                    ha, hb = self._haiku(groups[0], rd, a), self._haiku(groups[1], rd, b)
+                    if ha is None or hb is None:
+                        hz = None
+                        break
+                    hz[rd] = (ha, hb)
+                if hz:
+                    out["haiku"] = {rd: paired(a, b, f) for rd, (a, b) in hz.items()}
+                    out["haiku"]["pooled"] = paired_pooled(list(hz.values()), f)
+            self.rec(f"paired/{name}", out)
+
+        # Section 3: staleness and lag
+        both("ku_dwv1_vs_b2", {rd: (ku(U(rd, "deltawal_versioned", 1)), ku(H(rd, "B2_async", 1))) for rd in rd3},
+             groups=("unified", "heldout"))
+        both("ku_dwv1_vs_b1", {rd: (ku(U(rd, "deltawal_versioned", 1)), ku(H(rd, "B1_sync", 0))) for rd in rd3},
+             groups=("unified", "heldout"))
+        both("ku_dwv1_vs_b3", {rd: (ku(U(rd, "deltawal_versioned", 1)), ku(H(rd, "B3_recency_matched_user", 1)))
+                               for rd in rd3})
+        both("tr_gemma_dwv1_vs_dwv0", {"gemma4": (tr(U("gemma4", "deltawal_versioned", 1)),
+                                                  tr(U("gemma4", "deltawal_versioned", 0)))})
+        # Section 4: store vs prompt (2x2 at lag 0), read-side erasure
+        # store effect with the prompt held fixed (both epoch-tagged + precedence): append-only vs in-place (CAS)
+        both("kupast_store_effect", {rd: (kp(C(rd, "B1_sync_versioned", 0)), kp(C(rd, "deltawal_prompt", 0))) for rd in rd3})
+        # the same store effect on KU-current (does keeping versions cost current-value questions?)
+        both("kucur_store_effect", {rd: (kc(C(rd, "B1_sync_versioned", 0)), kc(C(rd, "deltawal_prompt", 0))) for rd in rd3})
+        both("kupast_prompt_effect", {rd: (kp(C(rd, "deltawal_prompt", 0)), kp(H(rd, "B1_sync", 0))) for rd in rd3})
+        both("kupast_dwv0_vs_b1", {rd: (kp(U(rd, "deltawal_versioned", 0)), kp(H(rd, "B1_sync", 0))) for rd in rd3},
+             groups=("unified", "heldout"))
+        both("kupast_dwv1_vs_shadow", {rd: (kp(U(rd, "deltawal_versioned", 1)), kp(H(rd, "deltawal_shadow_v2", 1)))
+                                       for rd in rd3}, groups=("unified", "heldout"))
+        both("kupast_dwv1_vs_lazy", {rd: (kp(U(rd, "deltawal_versioned", 1)), kp(H(rd, "deltawal_lazy", 1)))
+                                     for rd in rd3}, groups=("unified", "heldout"))
+        both("kucur_dwv1_vs_shadow", {rd: (kc(U(rd, "deltawal_versioned", 1)), kc(H(rd, "deltawal_shadow_v2", 1)))
+                                      for rd in rd3})
+        # Section 5: Mem0 hook (all 60 KU), MemConflict (clean 70), regression set
+        M, MH = R["mem0"], R["mem0hist"]
+        for nm, sel in (("ku", lambda rs: rs), ("kupast", lambda rs: [r for r in rs if r["ku_past"]]),
+                        ("kucur", lambda rs: [r for r in rs if not r["ku_past"]])):
+            both(f"mem0_hook_vs_sync_{nm}", {rd: (sel(cell(MH[rd], "Mem0_sync_history", 0)),
+                                                  sel(cell(M[rd], "Mem0_sync", 0))) for rd in rd3},
+                 groups=("mem0hist", "mem0") if nm == "kupast" else None)
+        keep, mc3 = self._clean70(), ["gemma4", "gpt-6-luna", "glm-5.3-flash"]
+        mcs = lambda rd, s, l, t: [r for r in cell(R["memconflict"][rd], s, l)          # noqa: E731
+                                   if r["qid"] in keep and r["qtype"] == f"memconflict-{t}"]
+        both("mc_dynamic_dwv0_vs_b1", {rd: (mcs(rd, "deltawal_versioned", 0, "dynamic"), mcs(rd, "B1_sync", 0, "dynamic"))
+                                       for rd in mc3}, groups=("memconflict", "memconflict"))
+        both("mc_static_falsebelief_dwv0_vs_b1", {rd: (mcs(rd, "deltawal_versioned", 0, "static"),
+                                                       mcs(rd, "B1_sync", 0, "static")) for rd in mc3},
+             f=stale, groups=("memconflict", "memconflict"))
+        # the same static comparison under Codex's blind labels (false_value = believed the later, false statement)
+        sl = self.s.get("memconflict_static_labels_codex") or []
+        if sl:
+            run2rd = {v: k for k, v in RUN_GROUPS["memconflict"].items()}
+            ex = self.s.get("memconflict_audit90_extra") or {}
+            v3 = {r["qid"]: r["verdict"] for r in ex.get("r3", [])}
+            v4 = {r["qid"]: r["verdict"] for r in ex.get("r4", [])}
+            all4 = {q for q in keep if v3.get(q) == "clean" and v4.get(q) == "clean"}
+            lab = defaultdict(list)
+            for r in sl:
+                lab[(run2rd[r["run"]], r["system"])].append({"qid": r["qid"], "fb": r["label"] == "false_value",
+                                                            "fb_or_both": r["label"] in ("false_value", "both")})
+            for nm, qs in (("clean70", keep), ("all4clean", all4)):
+                for fld in ("fb", "fb_or_both"):
+                    pr = {rd: ([x for x in lab[(rd, "deltawal_versioned")] if x["qid"] in qs],
+                               [x for x in lab[(rd, "B1_sync")] if x["qid"] in qs]) for rd in mc3}
+                    self.rec(f"paired/mc_static_codex_{fld}_{nm}", {"pooled": paired_pooled(list(pr.values()), f=lambda x: x[fld]),
+                                                                    "n_questions": len(qs & {x["qid"] for x in sl})})
+        both("mc_conditional_dwv0_vs_b1", {rd: (mcs(rd, "deltawal_versioned", 0, "conditional"),
+                                                mcs(rd, "B1_sync", 0, "conditional")) for rd in mc3})
+        RG = R["regression60"]
+        both("r60_dwv0_vs_b1", {rd: (cell(RG[rd], "deltawal_versioned", 0), cell(RG[rd], "B1_sync", 0)) for rd in rd3},
+             groups=("regression60", "regression60"))
+        # robustness runs: reordering and ablations of DeltaWAL-Versioned (lag 1)
+        O, A = R["reorder"], R["ablation"]
+        for lag in (1, 3):
+            both(f"reorder_dwv_lag{lag}_p03_vs_p0", {rd: (cell(O[rd], "deltawal_versioned", lag, 0.3),
+                                                          U(rd, "deltawal_versioned", lag)) for rd in rd3})
+            both(f"reorder_dwv_lag{lag}_p03_vs_p0_ku", {rd: (ku(cell(O[rd], "deltawal_versioned", lag, 0.3)),
+                                                             ku(U(rd, "deltawal_versioned", lag))) for rd in rd3})
+        for v in ("nogate", "noprec", "notags", "recency_user"):
+            both(f"abl_{v}", {rd: (cell(A[rd], f"deltawal_versioned_{v}", 1), U(rd, "deltawal_versioned", 1))
+                              for rd in rd3})
+            both(f"abl_{v}_ku", {rd: (ku(cell(A[rd], f"deltawal_versioned_{v}", 1)), ku(U(rd, "deltawal_versioned", 1)))
+                                 for rd in rd3})
+        both("abl_recency_user_vs_b3", {rd: (cell(A[rd], "deltawal_versioned_recency_user", 1),
+                                             H(rd, "B3_recency_matched_user", 1)) for rd in rd3})
+        both("abl_recency_user_vs_b3_tr", {rd: (tr(cell(A[rd], "deltawal_versioned_recency_user", 1)),
+                                                tr(H(rd, "B3_recency_matched_user", 1))) for rd in rd3})
+        B3D = R["b3dated"]
+        for nm, sel in (("", lambda rs: rs), ("_ku", ku), ("_tr", tr)):
+            both(f"b3dated_vs_b3{nm}", {rd: (sel(cell(B3D[rd], "B3_recency_matched_user_dated", 1)),
+                                             sel(H(rd, "B3_recency_matched_user", 1))) for rd in rd3})
+            both(f"recency_tags_vs_b3dated{nm}", {rd: (sel(cell(A[rd], "deltawal_versioned_recency_user", 1)),
+                                                       sel(cell(B3D[rd], "B3_recency_matched_user_dated", 1)))
+                                                  for rd in rd3})
+        # relabelled KU-past split (robustness of the cue-word split; see the appendix)
+        relab = {"5a4f22c0": False, "031748ae": True, "c6853660": True}
+        rl = lambda rs: [r for r in rs if is_ku(r) and relab.get(r["qid"], r["ku_past"])]   # noqa: E731
+        both("kupast_relabelled_dwv0_vs_b1", {rd: (rl(U(rd, "deltawal_versioned", 0)), rl(H(rd, "B1_sync", 0)))
+                                              for rd in rd3})
+
+    # ---------------------------------------------------------------- Table 10: ablations and reordering
+    def tab10(self) -> str:
+        A, O, rd3 = self.R["ablation"], self.R["reorder"], ["gemma4", "glm-5.3", "gpt-6-luna"]
+        spec = [("Full DeltaWAL-V.", lambda rd: cell(self.R["unified"][rd], "deltawal_versioned", 1)),
+                ("No relevance gate (budget-matched tail)", lambda rd: cell(A[rd], "deltawal_versioned_nogate", 1)),
+                ("No precedence instruction", lambda rd: cell(A[rd], "deltawal_versioned_noprec", 1)),
+                ("No epoch tags (dates kept)", lambda rd: cell(A[rd], "deltawal_versioned_notags", 1)),
+                ("Recency tail + tags + instruction", lambda rd: cell(A[rd], "deltawal_versioned_recency_user", 1)),
+                ("Full, reordering $p_\\text{ooo}=0.3$", lambda rd: cell(O[rd], "deltawal_versioned", 1, 0.3)),
+                None,
+                ("B3 (Table~\\ref{tab:main138}): undated recent turns",
+                 lambda rd: cell(self.R["heldout"][rd], "B3_recency_matched_user", 1)),
+                ("B3 + session dates on recent turns",
+                 lambda rd: cell(self.R["b3dated"][rd], "B3_recency_matched_user_dated", 1))]
+        body, rec = [], {}
+        for item in spec:
+            if item is None:
+                body.append("\\midrule")
+                continue
+            label, get = item
+            cells = []
+            for rd in rd3:
+                rs = get(rd)
+                assert len(rs) == 138, (label, rd, len(rs))
+                st = {"overall": stat(rs), "KU": stat([r for r in rs if is_ku(r)]),
+                      "temporal": stat([r for r in rs if is_tr(r)]),
+                      "mean_prompt_tokens": round(sum(r["prompt_tokens"] for r in rs) / len(rs), 1)}
+                rec.setdefault(label, {})[rd] = st
+                cells += [tnum(st["overall"]["mean"]), tnum(st["KU"]["mean"]), tnum(st["temporal"]["mean"])]
+            body.append(f"{label} & " + " & ".join(cells) + " \\\\")
+        keymap = {"Full DeltaWAL-V.": "full", "No relevance gate (budget-matched tail)": "nogate",
+                  "No precedence instruction": "noprec", "No epoch tags (dates kept)": "notags",
+                  "Recency tail + tags + instruction": "recency_tags", "Full, reordering $p_\\text{ooo}=0.3$": "reorder",
+                  "B3 (Table~\\ref{tab:main138}): undated recent turns": "b3",
+                  "B3 + session dates on recent turns": "b3_dated"}
+        self.rec("tab10", {keymap[k]: v for k, v in rec.items()})
+        hdr = ["Variant (lag 1)"] + [f"\\multicolumn{{3}}{{c}}{{{rd}}}" for rd in rd3]
+        sub = " & " + " & ".join(["All", "KU", "TR"] * 3) + " \\\\"
+        t = tabular("l" + "rrr" * 3, hdr, [sub, "\\midrule"] + body)
+        t = t.replace(" \\\\\n\\midrule\n & All", " \\\\\n\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}\\cmidrule(lr){8-10}\n & All", 1)
+        b = self.s["config"]
+        cap = ("Read-path ablations of DeltaWAL-Versioned at lag~1 on the 138 held-out questions (accuracy, \\%; "
+               "All, knowledge-update, temporal), each changing one factor, and the full system under reordering. "
+               "The no-gate and recency variants fill the same token budget as the gated prompt (mean "
+               f"prompt within 1\\% of full DeltaWAL-V.); the recency variant uses the trailing user turns of the "
+               f"conversation, as B3, rendered with epoch tags, dates and the precedence instruction. Gate recall "
+               f"(an update-session turn passes $\\tau={b['wal_sim_threshold']}$) is 60/60 at lags 1, 3 and 5. "
+               f"Bottom: B3 as in Table~\\ref{{tab:main138}} (async in-place store, "
+               f"{b['b3_matched_token_budget']}-token budget, undated recent turns) and the same system with only "
+               f"session dates added to its recent turns.")
+        return table_env("tab:ablation", cap, [t])
+
+    # ---------------------------------------------------------------- Table 11: gemma4 temporal probes
+    def tab11(self) -> str:
+        T, U = self.R["temporal_probe"]["gemma4"], self.R["unified"]["gemma4"]
+        base1 = [r for r in cell(U, "deltawal_versioned", 1) if is_tr(r)]
+        spec = [("DeltaWAL-V., lag 0", 0, [r for r in cell(U, "deltawal_versioned", 0) if is_tr(r)]),
+                ("DeltaWAL-V., lag 1", 1, base1),
+                ("lag 1, uncached re-run", 1, [r for r in cell(T, "deltawal_versioned_rerun", 1) if is_tr(r)]),
+                ("lag 0, padded to the lag-1 prompt length", 0, [r for r in cell(T, "deltawal_versioned_pad", 0) if is_tr(r)]),
+                ("lag 1, tail dated as ``message sent on''", 1, [r for r in cell(T, "deltawal_versioned_sentdate", 1) if is_tr(r)]),
+                ("lag 1, tail placed before the facts", 1, [r for r in cell(T, "deltawal_versioned_tailfirst", 1) if is_tr(r)]),
+                ("lag 1, no precedence instruction", 1, [r for r in cell(T, "deltawal_versioned_noprec", 1) if is_tr(r)])]
+        body, rec = [], {}
+        for label, lag, rs in spec:
+            st = {"temporal": stat(rs), "vs_lag1": paired(rs, base1) if rs is not base1 else None}
+            rec[label] = st
+            vs = "--" if st["vs_lag1"] is None else f"{st['vs_lag1']['a_only']}/{st['vs_lag1']['b_only']}"
+            pv = "--" if st["vs_lag1"] is None else f"{st['vs_lag1']['p_mcnemar']:.3f}"
+            body.append(f"{label} & {tci(st['temporal'])} & {vs} & {pv} \\\\")
+        slugs = ["lag0", "lag1", "rerun", "pad", "sentdate", "tailfirst", "noprec"]
+        self.rec("tab11", {sl: rec[label] for sl, (label, _, _) in zip(slugs, spec)})
+        cap = ("gemma4 on the 52 temporal questions: prompt probes for the lag-1 drop. Wins/losses and exact McNemar "
+               "$p$ are paired against DeltaWAL-V.\\ at lag~1 (judge: qwen3.8-flash).")
+        return table_env("tab:temporal_probe", cap, [tabular("lccr", ["Prompt", "Temporal", hdr2("Wins/losses", "vs.\\ lag 1"), "$p$"], body)])
+
+    # ---------------------------------------------------------------- Table 12: judge agreement across families
+    def tab12(self) -> str:
+        hz = self.s.get("rejudge_haiku") or []
+        if not hz:
+            return "% no second-judge data\n"
+        key = {}
+        for g, runs in self.R.items():
+            if g in ("ablation", "reorder", "temporal_probe"):
+                continue
+            for rd, rows in runs.items():
+                for r in rows:
+                    key[(g, rd, r["qid"], r["system"], r["lag"], float(r["p_ooo"] or 0.0))] = r
+
+        def kappa(x, y):
+            n = len(x)
+            po = sum(a == b for a, b in zip(x, y)) / n
+            pa, pb = sum(x) / n, sum(y) / n
+            pe = pa * pb + (1 - pa) * (1 - pb)
+            return po, ((po - pe) / (1 - pe) if pe < 1 else 1.0)
+        groups = defaultdict(lambda: {"c": ([], []), "s": ([], [])})
+        names = {"heldout": "LongMemEval-S held-out grid", "unified": "DeltaWAL-V.\\ cells", "controls": "Controls",
+                 "regression60": "Non-update regression", "mem0": "\\memzero{}", "mem0hist": "\\memzero{} history hook",
+                 "memconflict": "MemConflict"}
+        for g, rd, q, s, l, p, c, a, u in hz:
+            r = key.get((g, rd, q, s, l, float(p or 0.0)))
+            if r is None:
+                continue
+            for gg in (g, "ALL"):
+                groups[gg]["c"][0].append(bool(r["correct"]))
+                groups[gg]["c"][1].append(bool(c))
+                if r["qtype"] == "knowledge-update" or r["qtype"].startswith("memconflict-static"):
+                    groups[gg]["s"][0].append(stale(r))
+                    groups[gg]["s"][1].append((not c) and bool(u))
+        body, rec = [], {}
+        for g in list(names) + ["ALL"]:
+            d = groups.get(g)
+            if not d:
+                continue
+            pc, kc = kappa(*d["c"])
+            ps, ks = kappa(*d["s"]) if d["s"][0] else (None, None)
+            rec[g] = {"n": len(d["c"][0]), "agree_correct_pct": round(100 * pc, 1), "kappa_correct": round(kc, 3),
+                      "n_stale": len(d["s"][0]), "agree_stale_pct": round(100 * ps, 1) if ps is not None else None,
+                      "kappa_stale": round(ks, 3) if ks is not None else None}
+            label = "All judged rows" if g == "ALL" else names[g]
+            if g == "ALL":
+                body.append("\\midrule")
+            body.append(f"{label} & {rec[g]['n']} & {tnum(rec[g]['agree_correct_pct'])} & {rec[g]['kappa_correct']:.2f} & "
+                        + (f"{rec[g]['kappa_stale']:.2f}" if rec[g]["kappa_stale"] is not None else "--") + " \\\\")
+        # Codex (GPT family) on the 50-row judge-check sheet
+        j = self.s.get("judge_check50_codex") or []
+        if j:
+            jc = kappa([r["judge_correct"] for r in j], [r["codex_correct"] for r in j])
+            ja = kappa([r["judge_abstained"] for r in j], [r["codex_abstained"] for r in j])
+            kus = [r for r in j if r["stratum"] == "knowledge-update"]
+            js = kappa([(not r["judge_correct"]) and r["judge_uses_superseded"] for r in kus],
+                       [(not r["codex_correct"]) and r["codex_uses_superseded"] for r in kus])
+            rec["codex50"] = {"n": len(j), "agree_correct_pct": round(100 * jc[0], 1), "kappa_correct": round(jc[1], 3),
+                              "kappa_abstained": round(ja[1], 3), "n_stale": len(kus), "kappa_stale": round(js[1], 3)}
+        self.rec("tab12", rec)
+        cap = ("Agreement of the qwen3.8-flash judge with a second judge from another model family (claude-haiku-5-5) "
+               "on every judged answer in the paper, with identical judge prompts. Stale = wrong and using the "
+               "superseded value (KU rows; static false belief for MemConflict).")
+        return table_env("tab:judges", cap, [tabular("lrrrr", ["Rows", "$n$", hdr2("Agree", "correct (\\%)"),
+                                                                 hdr2("$\\kappa$", "correct"), hdr2("$\\kappa$", "stale")], body)],
+                         wide=False)
 
     def tab9(self) -> str:
         """Evaluated MemConflict questions that are not clean by both raters (dropped in the clean re-scoring)."""
@@ -1156,8 +1572,18 @@ def build(snap: dict) -> dict:
     for name, fn in (("tab1_main_138", b.tab1), ("tab2_history_ablation", b.tab2), ("tab3_regression_60", b.tab3),
                      ("tab4_mem0_60", b.tab4), ("tab5_memconflict_90", b.tab5), ("tab6_latency", b.tab6),
                      ("tab7_memconflict_clean", b.tab7), ("tab8_memconflict_audit", b.tab8),
-                     ("tab9_memconflict_dropped", b.tab9)):
+                     ("tab9_memconflict_dropped", b.tab9), ("tab10_ablation", b.tab10),
+                     ("tab11_temporal_probe", b.tab11), ("tab12_judges", b.tab12)):
         (tdir / f"{name}.tex").write_text(fn(), encoding="utf-8", newline="\n")
+    b.tests()
+    L = snap["latency_durable"]
+    b.rec("latency_durable", {k: {s.replace("deltawal_*", "DeltaWAL"): {"p50_ms": round(v["p50_ms"], 2), "p95_ms": round(v["p95_ms"], 2)}
+                                  for s, v in L[k]["write_ack"].items()} for k in ("nondurable_rerun", "durable")})
+    b.rec("latency_durable/deltawal_added_p50_ms", round(L["durable"]["write_ack"]["deltawal_*"]["p50_ms"]
+                                                         - L["nondurable_rerun"]["write_ack"]["deltawal_*"]["p50_ms"], 1))
+    fd = snap["forensics"]["destructive_overwrite_qids"]
+    b.rec("forensics_distinct", {"pairs": sum(len(v) for v in fd.values()),
+                                 "questions": len(set().union(*map(set, fd.values())))})
     plt = mpl_setup()
     F = Figures(b, plt)
     with warnings.catch_warnings(record=True) as caught:
@@ -1276,6 +1702,8 @@ def _fmt_value(key: str, v) -> str:
     if isinstance(v, int):
         return f"{v:,}".replace(",", "{,}") if abs(v) >= 10000 else str(v)
     leaf = key.rsplit("/", 1)[-1]
+    if leaf in ("p_perm", "p_mcnemar"):         # p-values: three decimals, floor at 0.001
+        return "{<}0.001" if v < 0.001 else f"{v:.3f}"
     if "kappa" in key or leaf == "agreement":
         return f"{v:.3f}" if "kappa_ci95" not in key else f"{v:.2f}"
     if key.startswith(("tab6/", "fig1/")) or leaf.endswith("_ms"):
