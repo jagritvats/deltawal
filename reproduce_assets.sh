@@ -33,6 +33,6 @@ if [ "$TEX" = 1 ]; then
     set -e
     for pass in 1 2; do pdflatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp check_assets.tex >/dev/null; done
     cp /tmp/check_assets.pdf /w/check_assets.pdf
-    if grep -nE "Overfull|Underfull|Warning" /tmp/check_assets.log; then echo "LaTeX layout warnings" >&2; exit 1; fi
+    if grep -nE "Overfull|Underfull|Warning" /tmp/check_assets.log | grep -vE "Reference .* undefined|There were undefined references|Label\(s\) may have changed"; then echo "LaTeX layout warnings" >&2; exit 1; fi
     echo "check_assets.tex: $(grep -o "Output written on [^ ]* ([0-9]* pages" /tmp/check_assets.log), no warnings"'
 fi

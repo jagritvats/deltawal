@@ -3,11 +3,11 @@
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
-\caption{Wall-clock latency (ms) on the real stack (Redpanda, Redis, PostgreSQL/pgvector, local qwen3-embedding:0.6b embeddings), 10 dev questions at lag 3; write ack over 416 sessions, read paths exclude the reader decode. B1 acknowledges only after synchronous extraction (recorded live extractor time), embedding and upsert; B2 after the broker ack; DeltaWAL after the Redis WAL write-through and broker ack. Cold = the WAL tail is embedded at read time; Lazy runs a live extraction call per query. DeltaWAL-Versioned uses the DeltaWAL read path.}
+\caption{Wall-clock latency (ms) on the real stack (Redpanda, Redis, PostgreSQL/pgvector, local qwen3-embedding:0.6b embeddings), 10 dev questions at lag 3; write ack over 416 sessions, read paths exclude the reader decode. B1 acknowledges only after synchronous extraction (recorded live time of the local 12B extractor on the dev split), embedding and upsert; B2 after the broker ack; DeltaWAL after the Redis WAL write-through and broker ack. Cold = the WAL tail is embedded at read time; Lazy runs a live extraction call per query; `emb.' = the query embedding. DeltaWAL-Versioned uses the DeltaWAL read path. For reference, the cloud extractor used for all evaluated sets took 4.26\,s per session at the median (7.63\,s p95; 9,707 live calls logged during concurrent batch extraction).}
 \label{tab:latency}
 \begin{tabular}{lrrrrrr}
 \toprule
-System & \multicolumn{2}{c}{Write ack} & \multicolumn{2}{c}{Read (incl.\ query emb.)} & \multicolumn{2}{c}{Read (excl.\ query emb.)} \\
+System & \multicolumn{2}{c}{\begin{tabular}[b]{@{}c@{}}Write\\ack\end{tabular}} & \multicolumn{2}{c}{\begin{tabular}[b]{@{}c@{}}Read path\\incl.\ emb.\end{tabular}} & \multicolumn{2}{c}{\begin{tabular}[b]{@{}c@{}}Read path\\excl.\ emb.\end{tabular}} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
  & p50 & p95 & p50 & p95 & p50 & p95 \\
 \midrule

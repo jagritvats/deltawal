@@ -1,0 +1,30 @@
+\section{Additional tables}
+\label{app:tables}
+
+Table~\ref{tab:latency} gives the latency measurements, Table~\ref{tab:regression60} the non-update regression by question type, Table~\ref{tab:memconflict} the full MemConflict results per reader, and Table~\ref{tab:memconflict_clean} the same answers re-scored on the questions both auditors call clean.
+
+\input{tables/tab6_latency}
+\input{tables/tab3_regression_60}
+\input{tables/tab5_memconflict_90}
+\input{tables/tab7_memconflict_clean}
+
+\section{MemConflict audit}
+\label{app:memconflict}
+
+\paragraph{Procedure.}
+Every evaluated question was audited blind to all model outputs: a rater saw only the question, the gold answer, the construction record and the evidence sessions (user turns in full, assistant turns truncated), and had to support each verdict with verbatim dialogue quotes. A question is \emph{clean} if the user's own statements support the gold as worded, the value is about the user, and, for static items, the later statement genuinely contradicts the earlier one; \emph{ambiguous} if a careful reader could defend another answer or the planted conflict is not a real contradiction; a \emph{label error} if the gold is unsupported or belongs to someone else. The rubric is reproduced in Appendix~\ref{app:prompts}. Two raters, built on different LLMs, audited every question independently, and neither saw the other's verdicts. Their verdicts were frozen before being joined with any model output. Table~\ref{tab:memconflict_audit} gives the counts and Table~\ref{tab:memconflict_dropped} lists the excluded questions.
+
+\paragraph{Findings.}
+The raters agree on \nm{memconflict_audit90_r2/agreement_binary_pct}\% of questions (Cohen's $\kappa=\nm{memconflict_audit90_r2/kappa_binary}$); every disagreement is between \emph{clean} and \emph{ambiguous}, so no question one rater calls clean is a label error for the other. Outright label errors are rare; most flagged items are static conflicts whose later statement does not logically contradict the earlier one (a lower degree does not refute a higher one as ``highest degree'', records listing a mother as unknown do not refute having one) or is voiced only by the assistant. The pre-registered gate of \nm{memconflict_audit90/gate_pct}\% clean fails for each rater and for their intersection, and we report it as failed.
+
+By type, \nm{tab8/dynamic/evaluated/clean_both} of \nm{tab8/dynamic/evaluated/n} dynamic, \nm{tab8/static/evaluated/clean_both} of \nm{tab8/static/evaluated/n} static and \nm{tab8/conditional/evaluated/clean_both} of \nm{tab8/conditional/evaluated/n} conditional questions are clean for both raters (Table~\ref{tab:memconflict_audit}); the clean re-scoring in Table~\ref{tab:memconflict_clean} keeps these \nm{memconflict_audit90_r2/both_clean} questions.
+
+\input{tables/tab8_memconflict_audit}
+\input{tables/tab9_memconflict_dropped}
+
+\section{Prompts, cue words and audit rubric}
+\label{app:prompts}
+
+All prompts below are rendered from the code that produced the results; placeholders are in angle brackets.
+
+\input{tables/app_prompts}

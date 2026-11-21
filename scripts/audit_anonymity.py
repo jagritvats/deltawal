@@ -29,6 +29,9 @@ GENERIC = {
 }
 # public, non-identifying addresses that legitimately appear in vendored metadata / docs
 ALLOWED_EMAILS = {b"noreply@github.com"}
+# unmodified third-party style files (paper/style/SOURCE.txt); their headers carry the style authors' addresses.
+# Identity terms and secrets are still checked in these files.
+VENDORED = {"paper/style/tmlr.sty", "paper/style/tmlr.bst", "paper/style/fancyhdr.sty"}
 
 
 def _git(*args) -> str:
@@ -83,6 +86,8 @@ def main() -> int:
             for label, rx in GENERIC.items():
                 for m in rx.finditer(blob):
                     if label == "email address" and m.group(0) in ALLOWED_EMAILS:
+                        continue
+                    if label == "email address" and rel in VENDORED:   # third-party authors' contact lines
                         continue
                     if label == "AI attribution" and rel == "scripts/audit_anonymity.py":   # the rule itself
                         continue

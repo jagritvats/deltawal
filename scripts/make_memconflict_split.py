@@ -1,6 +1,6 @@
 """MemConflict (Data/Step4_4.jsonl): 30-item label audit report + stratified 90-question eval split.
 
-No LLM calls. The audit verdicts below were assigned by reading the evidence sessions of each sampled
+No model-API calls. The audit verdicts below were assigned by an LLM assistant (not a human) reading the evidence sessions of each sampled
 question (the gold answer is generated from construction metadata, so the check is whether the
 dialogue actually states it for the USER). The script re-derives the sample deterministically,
 re-checks structure, evaluates the candidate filter rules against the verdicts and writes
@@ -192,7 +192,7 @@ def write_audit(insts, sample, path, seed: int) -> dict:
     if missing:
         raise SystemExit(f"audit sample changed; no verdict for {missing}")
     lines = [
-        "MemConflict Step4_4.jsonl - 30-question label audit (read by hand, no LLM)",
+        "MemConflict Step4_4.jsonl - 30-question label audit (read by an LLM assistant; no automated judge, no model outputs)",
         f"source: {SOURCE['repo']} @ {SOURCE['revision']} {SOURCE['file']} sha256={SOURCE['sha256']}",
         f"sample: seed={seed}, random.Random('{seed}:audit:<stratum>').sample(pool sorted by qid, 10) per conflict type",
         "check per item: dialogue structure, session ordering/dates, and whether the gold answer is stated (for the USER)",

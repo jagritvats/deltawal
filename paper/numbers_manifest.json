@@ -31,7 +31,9 @@
   "runs/m4mem0hist_gemma/results_judged.jsonl": "814d3ec0ff2db6770f40149ad65b5e67b46f938b908b0e33237e645218346567",
   "runs/m4mem0hist_glm/results_judged.jsonl": "762b09a5601d7cca2f7fdd99781fe2becb9924f2ebff99c3109bdfa4120fc4c0",
   "runs/m4mem0hist_luna6/results_judged.jsonl": "1d01e88cb05c33302df5319ed02a3cb907f8d88a56f0e9833091b3574e7a4ad7",
-  "runs/memconflict_audit30.txt": "f507e92faff66724e9525b300b6f8170ff748c64995df2d65289d915f6f7ca61",
+  "runs/memconflict_audit30.txt": "af7d4f1e844d7af8299b2723e9b4a118145535dece2ff581c51a76f4be6b9dd7",
+  "runs/memconflict_audit90.jsonl": "509cd0522130e81eb26c0b6a0209e657ec7d3adeb5e688322fd42854bd49cbf0",
+  "runs/memconflict_audit90_r2.jsonl": "cdec55a6f8999a26ae72b882d91f357c54c9fae1c65376744dbf4d7097b908cc",
   "runs/sensitivity_shadow_heldout_rows.jsonl": "9d6aa21926bea29bbf51b8cf239d7cc96ef69b2f87561bdfc54353e4b838daf3"
  },
  "metrics": {
@@ -53,6 +55,12 @@
    "Static": 30,
    "Conditional": 30
   },
+  "datasets/memconflict_clean": {
+   "All": 70,
+   "Dynamic": 27,
+   "Static": 17,
+   "Conditional": 26
+  },
   "datasets/regression60": {
    "All": 60,
    "multi-session": 30,
@@ -70,133 +78,133 @@
    "B1_sync/gemma4": {
     "write_ack_p50_ms": 10168.09,
     "read_p50_ms": 4.21,
-    "KU": 83.33,
-    "temporal": 69.23
+    "KU": 83.3333,
+    "temporal": 69.2308
    },
    "B1_sync/glm-5.3": {
     "write_ack_p50_ms": 10168.09,
     "read_p50_ms": 4.21,
-    "KU": 76.67,
-    "temporal": 82.69
+    "KU": 76.6667,
+    "temporal": 82.6923
    },
    "B2_async/gemma4": {
     "write_ack_p50_ms": 0.98,
     "read_p50_ms": 4.09,
     "KU": 10.0,
-    "temporal": 3.85
+    "temporal": 3.8462
    },
    "B2_async/glm-5.3": {
     "write_ack_p50_ms": 0.98,
     "read_p50_ms": 4.09,
-    "KU": 11.67,
-    "temporal": 5.77
+    "KU": 11.6667,
+    "temporal": 5.7692
    },
    "deltawal_lazy/gemma4": {
     "write_ack_p50_ms": 2.67,
     "read_p50_ms": 3699.11,
-    "KU": 76.67,
-    "temporal": 65.38
+    "KU": 76.6667,
+    "temporal": 65.3846
    },
    "deltawal_lazy/glm-5.3": {
     "write_ack_p50_ms": 2.67,
     "read_p50_ms": 3699.11,
     "KU": 80.0,
-    "temporal": 80.77
+    "temporal": 80.7692
    },
    "deltawal_shadow_v2/gemma4": {
     "write_ack_p50_ms": 2.67,
     "read_p50_ms": 10.76,
     "KU": 80.0,
-    "temporal": 46.15
+    "temporal": 46.1538
    },
    "deltawal_shadow_v2/glm-5.3": {
     "write_ack_p50_ms": 2.67,
     "read_p50_ms": 10.76,
     "KU": 85.0,
-    "temporal": 80.77
+    "temporal": 80.7692
    },
    "deltawal_versioned/gemma4": {
     "write_ack_p50_ms": 2.67,
     "read_p50_ms": 10.57,
-    "KU": 88.33,
-    "temporal": 48.08
+    "KU": 88.3333,
+    "temporal": 48.0769
    },
    "deltawal_versioned/glm-5.3": {
     "write_ack_p50_ms": 2.67,
     "read_p50_ms": 10.57,
-    "KU": 96.67,
-    "temporal": 86.54
+    "KU": 96.6667,
+    "temporal": 86.5385
    },
    "note": "DeltaWAL-Versioned read latency = deltawal_prompt read path (same gate + merge)"
   },
   "fig3": {
    "ku_past": {
     "B1_sync/gemma4": {
-     "mean": 46.15,
-     "lo": 23.08,
-     "hi": 69.23,
+     "mean": 46.1538,
+     "lo": 23.0769,
+     "hi": 69.2308,
      "n": 13,
      "n_questions": 13
     },
     "B1_sync/gpt-6-luna": {
-     "mean": 46.15,
-     "lo": 23.08,
-     "hi": 69.23,
+     "mean": 46.1538,
+     "lo": 23.0769,
+     "hi": 69.2308,
      "n": 13,
      "n_questions": 13
     },
     "B1_sync/glm-5.3": {
-     "mean": 38.46,
-     "lo": 15.38,
-     "hi": 61.54,
+     "mean": 38.4615,
+     "lo": 15.3846,
+     "hi": 61.5385,
      "n": 13,
      "n_questions": 13
     },
     "Mem0_sync/gemma4": {
-     "mean": 46.15,
-     "lo": 23.08,
-     "hi": 69.23,
+     "mean": 46.1538,
+     "lo": 23.0769,
+     "hi": 69.2308,
      "n": 13,
      "n_questions": 13
     },
     "Mem0_sync/gpt-6-luna": {
-     "mean": 53.85,
-     "lo": 30.77,
-     "hi": 76.92,
+     "mean": 53.8462,
+     "lo": 30.7692,
+     "hi": 76.9231,
      "n": 13,
      "n_questions": 13
     },
     "Mem0_sync/glm-5.3": {
-     "mean": 46.15,
-     "lo": 23.08,
-     "hi": 69.23,
+     "mean": 46.1538,
+     "lo": 23.0769,
+     "hi": 69.2308,
      "n": 13,
      "n_questions": 13
     },
     "deltawal_shadow_v2/gemma4": {
-     "mean": 38.46,
-     "lo": 15.38,
-     "hi": 61.54,
+     "mean": 38.4615,
+     "lo": 15.3846,
+     "hi": 61.5385,
      "n": 13,
      "n_questions": 13
     },
     "deltawal_shadow_v2/gpt-6-luna": {
-     "mean": 46.15,
-     "lo": 15.38,
-     "hi": 76.92,
+     "mean": 46.1538,
+     "lo": 15.3846,
+     "hi": 76.9231,
      "n": 13,
      "n_questions": 13
     },
     "deltawal_shadow_v2/glm-5.3": {
-     "mean": 46.15,
-     "lo": 15.38,
-     "hi": 76.92,
+     "mean": 46.1538,
+     "lo": 15.3846,
+     "hi": 76.9231,
      "n": 13,
      "n_questions": 13
     },
     "deltawal_versioned/gemma4": {
-     "mean": 84.62,
-     "lo": 61.54,
+     "mean": 84.6154,
+     "lo": 61.5385,
      "hi": 100.0,
      "n": 13,
      "n_questions": 13
@@ -220,23 +228,23 @@
   "fig4": {
    "mem0_pooled": {
     "Mem0_sync/KU-past": {
-     "mean": 48.72,
-     "lo": 23.08,
-     "hi": 71.79,
+     "mean": 48.7179,
+     "lo": 23.0769,
+     "hi": 71.7949,
      "n": 39,
      "n_questions": 13
     },
     "Mem0_sync/KU-current": {
-     "mean": 84.4,
-     "lo": 74.47,
-     "hi": 93.62,
+     "mean": 84.3972,
+     "lo": 74.4681,
+     "hi": 93.617,
      "n": 141,
      "n_questions": 47
     },
     "Mem0_async/KU-past": {
      "mean": 50.0,
-     "lo": 26.92,
-     "hi": 76.92,
+     "lo": 26.9231,
+     "hi": 76.9231,
      "n": 26,
      "n_questions": 13
     },
@@ -248,16 +256,16 @@
      "n_questions": 47
     },
     "Mem0_deltawal/KU-past": {
-     "mean": 97.44,
-     "lo": 92.31,
+     "mean": 97.4359,
+     "lo": 92.3077,
      "hi": 100.0,
      "n": 39,
      "n_questions": 13
     },
     "Mem0_deltawal/KU-current": {
-     "mean": 94.33,
-     "lo": 89.36,
-     "hi": 98.58,
+     "mean": 94.3262,
+     "lo": 89.3617,
+     "hi": 98.5816,
      "n": 141,
      "n_questions": 47
     },
@@ -272,48 +280,48 @@
    "memconflict_pooled": {
     "B1_sync/lag0": {
      "static_false_belief": {
-      "mean": 52.22,
-      "lo": 37.78,
-      "hi": 66.67,
+      "mean": 52.2222,
+      "lo": 37.7778,
+      "hi": 66.6667,
       "n": 90,
       "n_questions": 30
      },
      "dynamic": {
-      "mean": 42.22,
-      "lo": 26.67,
-      "hi": 57.78,
+      "mean": 42.2222,
+      "lo": 26.6667,
+      "hi": 57.7778,
       "n": 90,
       "n_questions": 30
      }
     },
     "B2_async/lag1": {
      "static_false_belief": {
-      "mean": 6.67,
-      "lo": 1.11,
-      "hi": 14.44,
+      "mean": 6.6667,
+      "lo": 1.1111,
+      "hi": 14.4444,
       "n": 90,
       "n_questions": 30
      },
      "dynamic": {
-      "mean": 15.56,
-      "lo": 5.56,
-      "hi": 27.78,
+      "mean": 15.5556,
+      "lo": 5.5556,
+      "hi": 27.7778,
       "n": 90,
       "n_questions": 30
      }
     },
     "B3_recency_matched_user/lag1": {
      "static_false_belief": {
-      "mean": 13.33,
-      "lo": 4.44,
-      "hi": 24.44,
+      "mean": 13.3333,
+      "lo": 4.4444,
+      "hi": 24.4444,
       "n": 90,
       "n_questions": 30
      },
      "dynamic": {
-      "mean": 17.78,
-      "lo": 8.89,
-      "hi": 28.89,
+      "mean": 17.7778,
+      "lo": 8.8889,
+      "hi": 28.8889,
       "n": 90,
       "n_questions": 30
      }
@@ -321,30 +329,30 @@
     "deltawal_versioned/lag0": {
      "static_false_belief": {
       "mean": 70.0,
-      "lo": 55.56,
-      "hi": 84.44,
+      "lo": 55.5556,
+      "hi": 84.4444,
       "n": 90,
       "n_questions": 30
      },
      "dynamic": {
-      "mean": 53.33,
-      "lo": 37.78,
-      "hi": 68.89,
+      "mean": 53.3333,
+      "lo": 37.7778,
+      "hi": 68.8889,
       "n": 90,
       "n_questions": 30
      }
     },
     "deltawal_versioned/lag1": {
      "static_false_belief": {
-      "mean": 56.67,
-      "lo": 42.22,
+      "mean": 56.6667,
+      "lo": 42.2222,
       "hi": 70.0,
       "n": 90,
       "n_questions": 30
      },
      "dynamic": {
-      "mean": 54.44,
-      "lo": 37.78,
+      "mean": 54.4444,
+      "lo": 37.7778,
       "hi": 70.0,
       "n": 90,
       "n_questions": 30
@@ -478,31 +486,223 @@
    "gate_pct": 85,
    "passed": true
   },
+  "memconflict_audit90": {
+   "n": 90,
+   "clean": 76,
+   "clean_pct": 84.44,
+   "not_clean": 14,
+   "wilson95": [
+    75.6,
+    90.5
+   ],
+   "by_type": {
+    "dynamic": {
+     "clean": 27,
+     "ambiguous": 2,
+     "label_error": 1
+    },
+    "static": {
+     "clean": 20,
+     "ambiguous": 10,
+     "label_error": 0
+    },
+    "conditional": {
+     "clean": 29,
+     "ambiguous": 1,
+     "label_error": 0
+    }
+   },
+   "gate_pct": 85,
+   "passed_on_lower_bound": false
+  },
+  "memconflict_audit90_r2": {
+   "clean": 74,
+   "n": 90,
+   "clean_pct": 82.22,
+   "agreement_binary_pct": 88.9,
+   "kappa_binary": 0.6,
+   "agreement_3way_pct": 87.8,
+   "kappa_3way": 0.563,
+   "both_clean": 70,
+   "either_clean": 80,
+   "disagreements": 10,
+   "robustness": {
+    "both_clean/B1_sync/lag0": {
+     "dynamic": {
+      "mean": 46.9136,
+      "lo": 30.8642,
+      "hi": 65.4321,
+      "n": 81,
+      "n_questions": 27
+     },
+     "static_false_belief": {
+      "mean": 64.7059,
+      "lo": 47.0588,
+      "hi": 80.3922,
+      "n": 51,
+      "n_questions": 17
+     }
+    },
+    "both_clean/deltawal_versioned/lag0": {
+     "dynamic": {
+      "mean": 59.2593,
+      "lo": 41.9753,
+      "hi": 75.3086,
+      "n": 81,
+      "n_questions": 27
+     },
+     "static_false_belief": {
+      "mean": 86.2745,
+      "lo": 70.5882,
+      "hi": 100.0,
+      "n": 51,
+      "n_questions": 17
+     }
+    },
+    "both_clean/B2_async/lag1": {
+     "dynamic": {
+      "mean": 17.284,
+      "lo": 6.1728,
+      "hi": 30.8642,
+      "n": 81,
+      "n_questions": 27
+     },
+     "static_false_belief": {
+      "mean": 9.8039,
+      "lo": 0.0,
+      "hi": 21.5686,
+      "n": 51,
+      "n_questions": 17
+     }
+    },
+    "either_clean/B1_sync/lag0": {
+     "dynamic": {
+      "mean": 45.2381,
+      "lo": 27.381,
+      "hi": 61.9048,
+      "n": 84,
+      "n_questions": 28
+     },
+     "static_false_belief": {
+      "mean": 55.0725,
+      "lo": 37.6812,
+      "hi": 72.4638,
+      "n": 69,
+      "n_questions": 23
+     }
+    },
+    "either_clean/deltawal_versioned/lag0": {
+     "dynamic": {
+      "mean": 57.1429,
+      "lo": 41.6667,
+      "hi": 72.619,
+      "n": 84,
+      "n_questions": 28
+     },
+     "static_false_belief": {
+      "mean": 76.8116,
+      "lo": 60.8696,
+      "hi": 91.3043,
+      "n": 69,
+      "n_questions": 23
+     }
+    },
+    "either_clean/B2_async/lag1": {
+     "dynamic": {
+      "mean": 16.6667,
+      "lo": 5.9524,
+      "hi": 29.7619,
+      "n": 84,
+      "n_questions": 28
+     },
+     "static_false_belief": {
+      "mean": 8.6957,
+      "lo": 1.4493,
+      "hi": 18.8406,
+      "n": 69,
+      "n_questions": 23
+     }
+    },
+    "r2_clean/B1_sync/lag0": {
+     "dynamic": {
+      "mean": 45.2381,
+      "lo": 27.381,
+      "hi": 61.9048,
+      "n": 84,
+      "n_questions": 28
+     },
+     "static_false_belief": {
+      "mean": 63.3333,
+      "lo": 46.6667,
+      "hi": 80.0,
+      "n": 60,
+      "n_questions": 20
+     }
+    },
+    "r2_clean/deltawal_versioned/lag0": {
+     "dynamic": {
+      "mean": 57.1429,
+      "lo": 41.6667,
+      "hi": 72.619,
+      "n": 84,
+      "n_questions": 28
+     },
+     "static_false_belief": {
+      "mean": 83.3333,
+      "lo": 70.0,
+      "hi": 95.0,
+      "n": 60,
+      "n_questions": 20
+     }
+    },
+    "r2_clean/B2_async/lag1": {
+     "dynamic": {
+      "mean": 16.6667,
+      "lo": 5.9524,
+      "hi": 29.7619,
+      "n": 84,
+      "n_questions": 28
+     },
+     "static_false_belief": {
+      "mean": 8.3333,
+      "lo": 0.0,
+      "hi": 18.3333,
+      "n": 60,
+      "n_questions": 20
+     }
+    }
+   }
+  },
+  "stats": {
+   "bootstrap_resamples": 2000,
+   "ci_level_pct": 95,
+   "seed": 42
+  },
   "tab1/gemma4/B1_sync/lag0": {
    "overall": {
-    "mean": 79.71,
-    "lo": 72.46,
-    "hi": 86.23,
+    "mean": 79.7101,
+    "lo": 72.4638,
+    "hi": 86.2319,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 83.33,
-    "lo": 73.33,
-    "hi": 91.67,
+    "mean": 83.3333,
+    "lo": 73.3333,
+    "hi": 91.6667,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 69.23,
-    "lo": 55.77,
-    "hi": 80.77,
+    "mean": 69.2308,
+    "lo": 55.7692,
+    "hi": 80.7692,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -512,29 +712,29 @@
   },
   "tab1/gemma4/B2_async/lag1": {
    "overall": {
-    "mean": 23.19,
-    "lo": 16.67,
-    "hi": 30.43,
+    "mean": 23.1884,
+    "lo": 16.6667,
+    "hi": 30.4348,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
     "mean": 10.0,
-    "lo": 3.33,
-    "hi": 18.33,
+    "lo": 3.3333,
+    "hi": 18.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 3.85,
+    "mean": 3.8462,
     "lo": 0.0,
-    "hi": 9.62,
+    "hi": 9.6154,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -544,29 +744,29 @@
   },
   "tab1/gemma4/B3_recency_matched_user/lag1": {
    "overall": {
-    "mean": 57.97,
-    "lo": 49.28,
-    "hi": 65.94,
+    "mean": 57.971,
+    "lo": 49.2754,
+    "hi": 65.942,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 63.33,
-    "lo": 51.67,
+    "mean": 63.3333,
+    "lo": 51.6667,
     "hi": 75.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 32.69,
-    "lo": 21.15,
-    "hi": 46.15,
+    "mean": 32.6923,
+    "lo": 21.1538,
+    "hi": 46.1538,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 96.15,
-    "lo": 88.46,
+    "mean": 96.1538,
+    "lo": 88.4615,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -576,29 +776,29 @@
   },
   "tab1/gemma4/deltawal_lazy/lag1": {
    "overall": {
-    "mean": 75.36,
-    "lo": 68.12,
-    "hi": 82.61,
+    "mean": 75.3623,
+    "lo": 68.1159,
+    "hi": 82.6087,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 65.0,
-    "hi": 86.67,
+    "hi": 86.6667,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 65.38,
-    "lo": 51.92,
-    "hi": 76.92,
+    "mean": 65.3846,
+    "lo": 51.9231,
+    "hi": 76.9231,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -608,29 +808,29 @@
   },
   "tab1/gemma4/deltawal_shadow_v2/lag1": {
    "overall": {
-    "mean": 69.57,
-    "lo": 62.32,
-    "hi": 76.81,
+    "mean": 69.5652,
+    "lo": 62.3188,
+    "hi": 76.8116,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
     "mean": 80.0,
-    "lo": 68.33,
+    "lo": 68.3333,
     "hi": 90.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 46.15,
-    "lo": 32.69,
-    "hi": 59.62,
+    "mean": 46.1538,
+    "lo": 32.6923,
+    "hi": 59.6154,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -640,29 +840,29 @@
   },
   "tab1/gemma4/deltawal_versioned/lag0": {
    "overall": {
-    "mean": 83.33,
-    "lo": 77.54,
-    "hi": 89.13,
+    "mean": 83.3333,
+    "lo": 77.5362,
+    "hi": 89.1304,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
     "mean": 95.0,
-    "lo": 88.33,
+    "lo": 88.3333,
     "hi": 100.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 65.38,
-    "lo": 51.92,
-    "hi": 76.92,
+    "mean": 65.3846,
+    "lo": 51.9231,
+    "hi": 76.9231,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -672,29 +872,29 @@
   },
   "tab1/gemma4/deltawal_versioned/lag1": {
    "overall": {
-    "mean": 73.91,
-    "lo": 66.67,
-    "hi": 81.16,
+    "mean": 73.913,
+    "lo": 66.6667,
+    "hi": 81.1594,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 88.33,
+    "mean": 88.3333,
     "lo": 80.0,
     "hi": 95.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 48.08,
-    "lo": 34.62,
-    "hi": 61.54,
+    "mean": 48.0769,
+    "lo": 34.6154,
+    "hi": 61.5385,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -704,14 +904,14 @@
   },
   "tab1/gemma4/deltawal_versioned/lag3": {
    "overall": {
-    "mean": 74.64,
-    "lo": 67.39,
-    "hi": 81.88,
+    "mean": 74.6377,
+    "lo": 67.3913,
+    "hi": 81.8841,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 88.33,
+    "mean": 88.3333,
     "lo": 80.0,
     "hi": 95.0,
     "n": 60,
@@ -719,14 +919,14 @@
    },
    "temporal": {
     "mean": 50.0,
-    "lo": 36.54,
-    "hi": 63.46,
+    "lo": 36.5385,
+    "hi": 63.4615,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -736,29 +936,29 @@
   },
   "tab1/gemma4/deltawal_versioned/lag5": {
    "overall": {
-    "mean": 76.09,
-    "lo": 68.84,
-    "hi": 83.33,
+    "mean": 76.087,
+    "lo": 68.8406,
+    "hi": 83.3333,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 91.67,
+    "mean": 91.6667,
     "lo": 85.0,
-    "hi": 98.33,
+    "hi": 98.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
     "mean": 50.0,
-    "lo": 36.54,
-    "hi": 63.46,
+    "lo": 36.5385,
+    "hi": 63.4615,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -768,29 +968,29 @@
   },
   "tab1/glm-5.3/B1_sync/lag0": {
    "overall": {
-    "mean": 81.88,
-    "lo": 74.64,
-    "hi": 87.68,
+    "mean": 81.8841,
+    "lo": 74.6377,
+    "hi": 87.6812,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 65.0,
-    "hi": 86.67,
+    "hi": 86.6667,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 82.69,
-    "lo": 71.15,
-    "hi": 92.31,
+    "mean": 82.6923,
+    "lo": 71.1538,
+    "hi": 92.3077,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -800,29 +1000,29 @@
   },
   "tab1/glm-5.3/B2_async/lag1": {
    "overall": {
-    "mean": 24.64,
-    "lo": 17.39,
-    "hi": 32.61,
+    "mean": 24.6377,
+    "lo": 17.3913,
+    "hi": 32.6087,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 11.67,
+    "mean": 11.6667,
     "lo": 5.0,
     "hi": 20.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 5.77,
+    "mean": 5.7692,
     "lo": 0.0,
-    "hi": 13.46,
+    "hi": 13.4615,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -832,9 +1032,9 @@
   },
   "tab1/glm-5.3/B3_recency_matched_user/lag1": {
    "overall": {
-    "mean": 66.67,
-    "lo": 58.7,
-    "hi": 73.91,
+    "mean": 66.6667,
+    "lo": 58.6957,
+    "hi": 73.913,
     "n": 138,
     "n_questions": 138
    },
@@ -846,15 +1046,15 @@
     "n_questions": 60
    },
    "temporal": {
-    "mean": 38.46,
+    "mean": 38.4615,
     "lo": 25.0,
-    "hi": 51.92,
+    "hi": 51.9231,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -864,29 +1064,29 @@
   },
   "tab1/glm-5.3/deltawal_lazy/lag1": {
    "overall": {
-    "mean": 82.61,
-    "lo": 76.09,
-    "hi": 88.41,
+    "mean": 82.6087,
+    "lo": 76.087,
+    "hi": 88.4058,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
     "mean": 80.0,
-    "lo": 68.33,
+    "lo": 68.3333,
     "hi": 90.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 80.77,
-    "lo": 69.23,
-    "hi": 92.31,
+    "mean": 80.7692,
+    "lo": 69.2308,
+    "hi": 92.3077,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -896,29 +1096,29 @@
   },
   "tab1/glm-5.3/deltawal_shadow_v2/lag1": {
    "overall": {
-    "mean": 84.78,
-    "lo": 78.99,
-    "hi": 90.58,
+    "mean": 84.7826,
+    "lo": 78.9855,
+    "hi": 90.5797,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
     "mean": 85.0,
     "lo": 75.0,
-    "hi": 93.33,
+    "hi": 93.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 80.77,
-    "lo": 69.23,
-    "hi": 90.38,
+    "mean": 80.7692,
+    "lo": 69.2308,
+    "hi": 90.3846,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -928,29 +1128,29 @@
   },
   "tab1/glm-5.3/deltawal_versioned/lag0": {
    "overall": {
-    "mean": 91.3,
-    "lo": 86.23,
-    "hi": 95.65,
+    "mean": 91.3043,
+    "lo": 86.2319,
+    "hi": 95.6522,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 96.67,
-    "lo": 91.67,
+    "mean": 96.6667,
+    "lo": 91.6667,
     "hi": 100.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 86.54,
-    "lo": 76.92,
-    "hi": 94.23,
+    "mean": 86.5385,
+    "lo": 76.9231,
+    "hi": 94.2308,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 88.46,
-    "lo": 76.92,
+    "mean": 88.4615,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -960,29 +1160,29 @@
   },
   "tab1/glm-5.3/deltawal_versioned/lag1": {
    "overall": {
-    "mean": 91.3,
-    "lo": 86.23,
-    "hi": 95.65,
+    "mean": 91.3043,
+    "lo": 86.2319,
+    "hi": 95.6522,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 96.67,
-    "lo": 91.67,
+    "mean": 96.6667,
+    "lo": 91.6667,
     "hi": 100.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 86.54,
-    "lo": 76.92,
-    "hi": 94.23,
+    "mean": 86.5385,
+    "lo": 76.9231,
+    "hi": 94.2308,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 88.46,
-    "lo": 76.92,
+    "mean": 88.4615,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -992,29 +1192,29 @@
   },
   "tab1/glm-5.3/deltawal_versioned/lag3": {
    "overall": {
-    "mean": 91.3,
-    "lo": 86.23,
-    "hi": 95.65,
+    "mean": 91.3043,
+    "lo": 86.2319,
+    "hi": 95.6522,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 96.67,
-    "lo": 91.67,
+    "mean": 96.6667,
+    "lo": 91.6667,
     "hi": 100.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 86.54,
-    "lo": 76.92,
-    "hi": 94.23,
+    "mean": 86.5385,
+    "lo": 76.9231,
+    "hi": 94.2308,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 88.46,
-    "lo": 76.92,
+    "mean": 88.4615,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1024,9 +1224,9 @@
   },
   "tab1/gpt-6-luna/B1_sync/lag0": {
    "overall": {
-    "mean": 81.16,
-    "lo": 73.91,
-    "hi": 87.68,
+    "mean": 81.1594,
+    "lo": 73.913,
+    "hi": 87.6812,
     "n": 138,
     "n_questions": 138
    },
@@ -1038,15 +1238,15 @@
     "n_questions": 60
    },
    "temporal": {
-    "mean": 78.85,
-    "lo": 67.31,
-    "hi": 88.46,
+    "mean": 78.8462,
+    "lo": 67.3077,
+    "hi": 88.4615,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 88.46,
-    "lo": 76.92,
+    "mean": 88.4615,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1056,29 +1256,29 @@
   },
   "tab1/gpt-6-luna/B2_async/lag1": {
    "overall": {
-    "mean": 23.19,
-    "lo": 15.94,
-    "hi": 30.43,
+    "mean": 23.1884,
+    "lo": 15.942,
+    "hi": 30.4348,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 11.67,
+    "mean": 11.6667,
     "lo": 5.0,
     "hi": 20.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 3.85,
+    "mean": 3.8462,
     "lo": 0.0,
-    "hi": 9.62,
+    "hi": 9.6154,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 88.46,
-    "lo": 76.92,
+    "mean": 88.4615,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1088,29 +1288,29 @@
   },
   "tab1/gpt-6-luna/B3_recency_matched_user/lag1": {
    "overall": {
-    "mean": 63.77,
-    "lo": 55.8,
-    "hi": 71.74,
+    "mean": 63.7681,
+    "lo": 55.7971,
+    "hi": 71.7391,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 71.67,
+    "mean": 71.6667,
     "lo": 60.0,
-    "hi": 81.67,
+    "hi": 81.6667,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 40.38,
-    "lo": 26.92,
-    "hi": 53.85,
+    "mean": 40.3846,
+    "lo": 26.9231,
+    "hi": 53.8462,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1120,29 +1320,29 @@
   },
   "tab1/gpt-6-luna/deltawal_lazy/lag1": {
    "overall": {
-    "mean": 78.99,
-    "lo": 72.46,
-    "hi": 85.51,
+    "mean": 78.9855,
+    "lo": 72.4638,
+    "hi": 85.5072,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 78.33,
-    "lo": 66.67,
-    "hi": 88.33,
+    "mean": 78.3333,
+    "lo": 66.6667,
+    "hi": 88.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 73.08,
-    "lo": 61.54,
-    "hi": 84.62,
+    "mean": 73.0769,
+    "lo": 61.5385,
+    "hi": 84.6154,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1152,29 +1352,29 @@
   },
   "tab1/gpt-6-luna/deltawal_shadow_v2/lag1": {
    "overall": {
-    "mean": 81.88,
-    "lo": 75.36,
-    "hi": 88.41,
+    "mean": 81.8841,
+    "lo": 75.3623,
+    "hi": 88.4058,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 81.67,
-    "lo": 71.67,
+    "mean": 81.6667,
+    "lo": 71.6667,
     "hi": 90.0,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 76.92,
-    "lo": 65.38,
-    "hi": 88.46,
+    "mean": 76.9231,
+    "lo": 65.3846,
+    "hi": 88.4615,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1184,29 +1384,29 @@
   },
   "tab1/gpt-6-luna/deltawal_versioned/lag0": {
    "overall": {
-    "mean": 89.13,
-    "lo": 84.06,
-    "hi": 94.2,
+    "mean": 89.1304,
+    "lo": 84.058,
+    "hi": 94.2029,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 93.33,
-    "lo": 86.67,
-    "hi": 98.33,
+    "mean": 93.3333,
+    "lo": 86.6667,
+    "hi": 98.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 82.69,
-    "lo": 73.08,
-    "hi": 92.31,
+    "mean": 82.6923,
+    "lo": 73.0769,
+    "hi": 92.3077,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1216,29 +1416,29 @@
   },
   "tab1/gpt-6-luna/deltawal_versioned/lag1": {
    "overall": {
-    "mean": 88.41,
-    "lo": 83.33,
-    "hi": 93.48,
+    "mean": 88.4058,
+    "lo": 83.3333,
+    "hi": 93.4783,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 93.33,
-    "lo": 86.67,
-    "hi": 98.33,
+    "mean": 93.3333,
+    "lo": 86.6667,
+    "hi": 98.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 80.77,
-    "lo": 69.23,
-    "hi": 90.38,
+    "mean": 80.7692,
+    "lo": 69.2308,
+    "hi": 90.3846,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1248,29 +1448,29 @@
   },
   "tab1/gpt-6-luna/deltawal_versioned/lag3": {
    "overall": {
-    "mean": 88.41,
-    "lo": 83.33,
-    "hi": 93.48,
+    "mean": 88.4058,
+    "lo": 83.3333,
+    "hi": 93.4783,
     "n": 138,
     "n_questions": 138
    },
    "KU": {
-    "mean": 93.33,
-    "lo": 86.67,
-    "hi": 98.33,
+    "mean": 93.3333,
+    "lo": 86.6667,
+    "hi": 98.3333,
     "n": 60,
     "n_questions": 60
    },
    "temporal": {
-    "mean": 80.77,
-    "lo": 69.23,
-    "hi": 90.38,
+    "mean": 80.7692,
+    "lo": 69.2308,
+    "hi": 90.3846,
     "n": 52,
     "n_questions": 52
    },
    "abstention": {
-    "mean": 92.31,
-    "lo": 80.77,
+    "mean": 92.3077,
+    "lo": 80.7692,
     "hi": 100.0,
     "n": 26,
     "n_questions": 26
@@ -1290,32 +1490,32 @@
   },
   "tab2a/gemma4/B1_sync": {
    "KU_past": {
-    "mean": 46.15,
-    "lo": 23.08,
-    "hi": 69.23,
+    "mean": 46.1538,
+    "lo": 23.0769,
+    "hi": 69.2308,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 93.62,
-    "lo": 85.11,
+    "mean": 93.617,
+    "lo": 85.1064,
     "hi": 100.0,
     "n": 47,
     "n_questions": 47
    },
    "destructive_cases": null
   },
-  "tab2a/gemma4/B1_sync_versioned": {
+  "tab2a/gemma4/deltawal_versioned": {
    "KU_past": {
-    "mean": 92.31,
-    "lo": 76.92,
+    "mean": 92.3077,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 93.62,
-    "lo": 87.23,
+    "mean": 95.7447,
+    "lo": 89.3617,
     "hi": 100.0,
     "n": 47,
     "n_questions": 47
@@ -1324,16 +1524,16 @@
   },
   "tab2a/glm-5.3/B1_sync": {
    "KU_past": {
-    "mean": 38.46,
-    "lo": 15.38,
-    "hi": 61.54,
+    "mean": 38.4615,
+    "lo": 15.3846,
+    "hi": 61.5385,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 87.23,
-    "lo": 76.6,
-    "hi": 95.74,
+    "mean": 87.234,
+    "lo": 76.5957,
+    "hi": 95.7447,
     "n": 47,
     "n_questions": 47
    },
@@ -1342,7 +1542,7 @@
     "n": 6
    }
   },
-  "tab2a/glm-5.3/B1_sync_versioned": {
+  "tab2a/glm-5.3/deltawal_versioned": {
    "KU_past": {
     "mean": 100.0,
     "lo": 100.0,
@@ -1351,8 +1551,8 @@
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 95.74,
-    "lo": 89.36,
+    "mean": 95.7447,
+    "lo": 89.3617,
     "hi": 100.0,
     "n": 47,
     "n_questions": 47
@@ -1364,16 +1564,16 @@
   },
   "tab2a/gpt-6-luna/B1_sync": {
    "KU_past": {
-    "mean": 46.15,
-    "lo": 23.08,
-    "hi": 69.23,
+    "mean": 46.1538,
+    "lo": 23.0769,
+    "hi": 69.2308,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 89.36,
-    "lo": 80.85,
-    "hi": 97.87,
+    "mean": 89.3617,
+    "lo": 80.8511,
+    "hi": 97.8723,
     "n": 47,
     "n_questions": 47
    },
@@ -1382,7 +1582,7 @@
     "n": 7
    }
   },
-  "tab2a/gpt-6-luna/B1_sync_versioned": {
+  "tab2a/gpt-6-luna/deltawal_versioned": {
    "KU_past": {
     "mean": 100.0,
     "lo": 100.0,
@@ -1391,9 +1591,9 @@
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 93.62,
-    "lo": 87.23,
-    "hi": 100.0,
+    "mean": 91.4894,
+    "lo": 82.9787,
+    "hi": 97.8723,
     "n": 47,
     "n_questions": 47
    },
@@ -1428,30 +1628,30 @@
    "cells": 690,
    "cells_rerun": 521,
    "overall": {
-    "mean": 65.51,
-    "lo": 57.54,
-    "hi": 73.04,
+    "mean": 65.5072,
+    "lo": 57.5362,
+    "hi": 73.0435,
     "n": 690,
     "n_questions": 138
    },
    "KU": {
     "mean": 75.0,
-    "lo": 63.33,
+    "lo": 63.3333,
     "hi": 85.0,
     "n": 300,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 15.38,
+    "mean": 15.3846,
     "lo": 0.0,
-    "hi": 38.46,
+    "hi": 38.4615,
     "n": 65,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 91.49,
-    "lo": 82.98,
-    "hi": 97.87,
+    "mean": 91.4894,
+    "lo": 82.9787,
+    "hi": 97.8723,
     "n": 235,
     "n_questions": 47
    }
@@ -1460,30 +1660,30 @@
    "cells": 690,
    "cells_rerun": 406,
    "overall": {
-    "mean": 68.12,
-    "lo": 60.72,
-    "hi": 75.65,
+    "mean": 68.1159,
+    "lo": 60.7246,
+    "hi": 75.6522,
     "n": 690,
     "n_questions": 138
    },
    "KU": {
-    "mean": 77.67,
-    "lo": 66.67,
-    "hi": 87.67,
+    "mean": 77.6667,
+    "lo": 66.6667,
+    "hi": 87.6667,
     "n": 300,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 27.69,
-    "lo": 7.69,
-    "hi": 50.77,
+    "mean": 27.6923,
+    "lo": 7.6923,
+    "hi": 50.7692,
     "n": 65,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 91.49,
-    "lo": 82.98,
-    "hi": 97.87,
+    "mean": 91.4894,
+    "lo": 82.9787,
+    "hi": 97.8723,
     "n": 235,
     "n_questions": 47
    }
@@ -1492,9 +1692,9 @@
    "cells": 690,
    "cells_rerun": 170,
    "overall": {
-    "mean": 70.29,
-    "lo": 62.75,
-    "hi": 77.68,
+    "mean": 70.2899,
+    "lo": 62.7536,
+    "hi": 77.6812,
     "n": 690,
     "n_questions": 138
    },
@@ -1506,15 +1706,15 @@
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 30.77,
-    "lo": 7.69,
-    "hi": 53.85,
+    "mean": 30.7692,
+    "lo": 7.6923,
+    "hi": 53.8462,
     "n": 65,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 93.62,
-    "lo": 87.23,
+    "mean": 93.617,
+    "lo": 87.234,
     "hi": 100.0,
     "n": 235,
     "n_questions": 47
@@ -1524,30 +1724,30 @@
    "cells": 690,
    "cells_rerun": 0,
    "overall": {
-    "mean": 70.43,
-    "lo": 63.19,
-    "hi": 77.54,
+    "mean": 70.4348,
+    "lo": 63.1884,
+    "hi": 77.5362,
     "n": 690,
     "n_questions": 138
    },
    "KU": {
-    "mean": 79.33,
-    "lo": 68.67,
-    "hi": 88.33,
+    "mean": 79.3333,
+    "lo": 68.6667,
+    "hi": 88.3333,
     "n": 300,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 41.54,
-    "lo": 15.38,
-    "hi": 67.69,
+    "mean": 41.5385,
+    "lo": 15.3846,
+    "hi": 67.6923,
     "n": 65,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 89.79,
-    "lo": 80.85,
-    "hi": 97.02,
+    "mean": 89.7872,
+    "lo": 80.8511,
+    "hi": 97.0213,
     "n": 235,
     "n_questions": 47
    }
@@ -1556,30 +1756,30 @@
    "cells": 690,
    "cells_rerun": 183,
    "overall": {
-    "mean": 71.74,
-    "lo": 64.49,
-    "hi": 78.55,
+    "mean": 71.7391,
+    "lo": 64.4928,
+    "hi": 78.5507,
     "n": 690,
     "n_questions": 138
    },
    "KU": {
     "mean": 83.0,
     "lo": 73.0,
-    "hi": 91.33,
+    "hi": 91.3333,
     "n": 300,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 58.46,
-    "lo": 30.77,
-    "hi": 84.62,
+    "mean": 58.4615,
+    "lo": 30.7692,
+    "hi": 84.6154,
     "n": 65,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 89.79,
-    "lo": 80.85,
-    "hi": 97.02,
+    "mean": 89.7872,
+    "lo": 80.8511,
+    "hi": 97.0213,
     "n": 235,
     "n_questions": 47
    }
@@ -1588,30 +1788,30 @@
    "cells": 690,
    "cells_rerun": null,
    "overall": {
-    "mean": 74.49,
-    "lo": 67.54,
-    "hi": 81.16,
+    "mean": 74.4928,
+    "lo": 67.5362,
+    "hi": 81.1594,
     "n": 690,
     "n_questions": 138
    },
    "KU": {
-    "mean": 87.33,
+    "mean": 87.3333,
     "lo": 79.0,
-    "hi": 94.67,
+    "hi": 94.6667,
     "n": 300,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 84.62,
-    "lo": 61.54,
+    "mean": 84.6154,
+    "lo": 61.5385,
     "hi": 100.0,
     "n": 65,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 88.09,
-    "lo": 78.72,
-    "hi": 96.17,
+    "mean": 88.0851,
+    "lo": 78.7234,
+    "hi": 96.1702,
     "n": 235,
     "n_questions": 47
    }
@@ -1621,49 +1821,57 @@
    "corrupted_keys": 23,
    "oocr_pct": 7.82,
    "cas_rejections": 0,
-   "questions_with_missed_merge": 31,
-   "n_questions": 138,
-   "missed_merge_pct": 22.46
+   "questions_with_missed_merge": 9,
+   "n_questions": 60,
+   "missed_merge_pct": 15.0,
+   "all_questions_flagged": 31,
+   "all_questions": 138
   },
   "tab2c/lag1/deltawal_prompt": {
    "updated_keys": 294,
    "corrupted_keys": 0,
    "oocr_pct": 0.0,
    "cas_rejections": 25,
-   "questions_with_missed_merge": 31,
-   "n_questions": 138,
-   "missed_merge_pct": 22.46
+   "questions_with_missed_merge": 9,
+   "n_questions": 60,
+   "missed_merge_pct": 15.0,
+   "all_questions_flagged": 31,
+   "all_questions": 138
   },
   "tab2c/lag3/B2_async": {
    "updated_keys": 267,
    "corrupted_keys": 24,
    "oocr_pct": 8.99,
    "cas_rejections": 0,
-   "questions_with_missed_merge": 34,
-   "n_questions": 138,
-   "missed_merge_pct": 24.64
+   "questions_with_missed_merge": 11,
+   "n_questions": 60,
+   "missed_merge_pct": 18.33,
+   "all_questions_flagged": 34,
+   "all_questions": 138
   },
   "tab2c/lag3/deltawal_prompt": {
    "updated_keys": 267,
    "corrupted_keys": 0,
    "oocr_pct": 0.0,
    "cas_rejections": 26,
-   "questions_with_missed_merge": 34,
-   "n_questions": 138,
-   "missed_merge_pct": 24.64
+   "questions_with_missed_merge": 11,
+   "n_questions": 60,
+   "missed_merge_pct": 18.33,
+   "all_questions_flagged": 34,
+   "all_questions": 138
   },
   "tab3/gemma4/B1_sync/lag0": {
    "All": {
     "mean": 40.0,
-    "lo": 28.33,
-    "hi": 53.33,
+    "lo": 28.3333,
+    "hi": 53.3333,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 36.67,
+    "mean": 36.6667,
     "lo": 20.0,
-    "hi": 53.33,
+    "hi": 53.3333,
     "n": 30,
     "n_questions": 30
    },
@@ -1693,14 +1901,14 @@
   "tab3/gemma4/B2_async/lag1": {
    "All": {
     "mean": 10.0,
-    "lo": 3.33,
-    "hi": 18.33,
+    "lo": 3.3333,
+    "hi": 18.3333,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 16.67,
-    "lo": 6.67,
+    "mean": 16.6667,
+    "lo": 6.6667,
     "hi": 30.0,
     "n": 30,
     "n_questions": 30
@@ -1730,16 +1938,16 @@
   },
   "tab3/gemma4/B3_recency_matched_user/lag1": {
    "All": {
-    "mean": 46.67,
-    "lo": 33.33,
+    "mean": 46.6667,
+    "lo": 33.3333,
     "hi": 60.0,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 46.67,
+    "mean": 46.6667,
     "lo": 30.0,
-    "hi": 66.67,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
@@ -1768,16 +1976,16 @@
   },
   "tab3/gemma4/deltawal_versioned/lag0": {
    "All": {
-    "mean": 46.67,
+    "mean": 46.6667,
     "lo": 35.0,
     "hi": 60.0,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 53.33,
-    "lo": 36.67,
-    "hi": 73.33,
+    "mean": 53.3333,
+    "lo": 36.6667,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
@@ -1807,15 +2015,15 @@
   "tab3/gemma4/deltawal_versioned/lag1": {
    "All": {
     "mean": 65.0,
-    "lo": 53.33,
-    "hi": 76.67,
+    "lo": 53.3333,
+    "hi": 76.6667,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 53.33,
-    "lo": 36.67,
-    "hi": 73.33,
+    "mean": 53.3333,
+    "lo": 36.6667,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
@@ -1844,7 +2052,7 @@
   },
   "tab3/glm-5.3/B1_sync/lag0": {
    "All": {
-    "mean": 58.33,
+    "mean": 58.3333,
     "lo": 45.0,
     "hi": 70.0,
     "n": 60,
@@ -1852,8 +2060,8 @@
    },
    "multi-session": {
     "mean": 60.0,
-    "lo": 43.33,
-    "hi": 76.67,
+    "lo": 43.3333,
+    "hi": 76.6667,
     "n": 30,
     "n_questions": 30
    },
@@ -1882,15 +2090,15 @@
   },
   "tab3/glm-5.3/deltawal_versioned/lag0": {
    "All": {
-    "mean": 68.33,
-    "lo": 56.67,
+    "mean": 68.3333,
+    "lo": 56.6667,
     "hi": 80.0,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 73.33,
-    "lo": 56.67,
+    "mean": 73.3333,
+    "lo": 56.6667,
     "hi": 90.0,
     "n": 30,
     "n_questions": 30
@@ -1927,8 +2135,8 @@
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 73.33,
-    "lo": 56.67,
+    "mean": 73.3333,
+    "lo": 56.6667,
     "hi": 90.0,
     "n": 30,
     "n_questions": 30
@@ -1959,15 +2167,15 @@
   "tab3/gpt-6-luna/B1_sync/lag0": {
    "All": {
     "mean": 55.0,
-    "lo": 41.67,
-    "hi": 68.33,
+    "lo": 41.6667,
+    "hi": 68.3333,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
     "mean": 50.0,
-    "lo": 33.33,
-    "hi": 66.67,
+    "lo": 33.3333,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
@@ -1996,15 +2204,15 @@
   },
   "tab3/gpt-6-luna/B2_async/lag1": {
    "All": {
-    "mean": 8.33,
-    "lo": 1.67,
+    "mean": 8.3333,
+    "lo": 1.6667,
     "hi": 15.0,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 16.67,
-    "lo": 3.33,
+    "mean": 16.6667,
+    "lo": 3.3333,
     "hi": 30.0,
     "n": 30,
     "n_questions": 30
@@ -2035,14 +2243,14 @@
   "tab3/gpt-6-luna/B3_recency_matched_user/lag1": {
    "All": {
     "mean": 60.0,
-    "lo": 48.33,
-    "hi": 71.67,
+    "lo": 48.3333,
+    "hi": 71.6667,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 63.33,
-    "lo": 46.67,
+    "mean": 63.3333,
+    "lo": 46.6667,
     "hi": 80.0,
     "n": 30,
     "n_questions": 30
@@ -2072,16 +2280,16 @@
   },
   "tab3/gpt-6-luna/deltawal_versioned/lag0": {
    "All": {
-    "mean": 66.67,
+    "mean": 66.6667,
     "lo": 55.0,
-    "hi": 78.33,
+    "hi": 78.3333,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
-    "mean": 73.33,
-    "lo": 56.67,
-    "hi": 86.67,
+    "mean": 73.3333,
+    "lo": 56.6667,
+    "hi": 86.6667,
     "n": 30,
     "n_questions": 30
    },
@@ -2110,16 +2318,16 @@
   },
   "tab3/gpt-6-luna/deltawal_versioned/lag1": {
    "All": {
-    "mean": 71.67,
+    "mean": 71.6667,
     "lo": 60.0,
-    "hi": 83.33,
+    "hi": 83.3333,
     "n": 60,
     "n_questions": 60
    },
    "multi-session": {
     "mean": 70.0,
-    "lo": 53.33,
-    "hi": 86.67,
+    "lo": 53.3333,
+    "hi": 86.6667,
     "n": 30,
     "n_questions": 30
    },
@@ -2149,15 +2357,15 @@
   "tab4/gemma4/Mem0_async/lag1": {
    "KU": {
     "mean": 10.0,
-    "lo": 3.33,
-    "hi": 18.33,
+    "lo": 3.3333,
+    "hi": 18.3333,
     "n": 60,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 46.15,
-    "lo": 23.08,
-    "hi": 76.92,
+    "mean": 46.1538,
+    "lo": 23.0769,
+    "hi": 76.9231,
     "n": 13,
     "n_questions": 13
    },
@@ -2173,23 +2381,23 @@
   },
   "tab4/gemma4/Mem0_deltawal/lag1": {
    "KU": {
-    "mean": 91.67,
-    "lo": 83.33,
-    "hi": 98.33,
+    "mean": 91.6667,
+    "lo": 83.3333,
+    "hi": 98.3333,
     "n": 60,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 92.31,
-    "lo": 76.92,
+    "mean": 92.3077,
+    "lo": 76.9231,
     "hi": 100.0,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 91.49,
-    "lo": 82.98,
-    "hi": 97.87,
+    "mean": 91.4894,
+    "lo": 82.9787,
+    "hi": 97.8723,
     "n": 47,
     "n_questions": 47
    },
@@ -2198,23 +2406,23 @@
   },
   "tab4/gemma4/Mem0_sync/lag0": {
    "KU": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 65.0,
-    "hi": 86.67,
+    "hi": 86.6667,
     "n": 60,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 46.15,
-    "lo": 23.08,
-    "hi": 69.23,
+    "mean": 46.1538,
+    "lo": 23.0769,
+    "hi": 69.2308,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 85.11,
-    "lo": 74.47,
-    "hi": 93.62,
+    "mean": 85.1064,
+    "lo": 74.4681,
+    "hi": 93.617,
     "n": 47,
     "n_questions": 47
    },
@@ -2236,8 +2444,8 @@
   },
   "tab4/glm-5.3/Mem0_deltawal/lag1": {
    "KU": {
-    "mean": 96.67,
-    "lo": 91.67,
+    "mean": 96.6667,
+    "lo": 91.6667,
     "hi": 100.0,
     "n": 60,
     "n_questions": 60
@@ -2250,8 +2458,8 @@
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 95.74,
-    "lo": 89.36,
+    "mean": 95.7447,
+    "lo": 89.3617,
     "hi": 100.0,
     "n": 47,
     "n_questions": 47
@@ -2261,23 +2469,23 @@
   },
   "tab4/glm-5.3/Mem0_sync/lag0": {
    "KU": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 65.0,
-    "hi": 86.67,
+    "hi": 86.6667,
     "n": 60,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 46.15,
-    "lo": 23.08,
-    "hi": 69.23,
+    "mean": 46.1538,
+    "lo": 23.0769,
+    "hi": 69.2308,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 85.11,
-    "lo": 74.47,
-    "hi": 93.62,
+    "mean": 85.1064,
+    "lo": 74.4681,
+    "hi": 93.617,
     "n": 47,
     "n_questions": 47
    },
@@ -2299,16 +2507,16 @@
   },
   "tab4/gpt-6-luna/Mem0_async/lag1": {
    "KU": {
-    "mean": 11.67,
+    "mean": 11.6667,
     "lo": 5.0,
     "hi": 20.0,
     "n": 60,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 53.85,
-    "lo": 30.77,
-    "hi": 84.62,
+    "mean": 53.8462,
+    "lo": 30.7692,
+    "hi": 84.6154,
     "n": 13,
     "n_questions": 13
    },
@@ -2324,8 +2532,8 @@
   },
   "tab4/gpt-6-luna/Mem0_deltawal/lag1": {
    "KU": {
-    "mean": 96.67,
-    "lo": 91.67,
+    "mean": 96.6667,
+    "lo": 91.6667,
     "hi": 100.0,
     "n": 60,
     "n_questions": 60
@@ -2338,8 +2546,8 @@
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 95.74,
-    "lo": 89.36,
+    "mean": 95.7447,
+    "lo": 89.3617,
     "hi": 100.0,
     "n": 47,
     "n_questions": 47
@@ -2349,23 +2557,23 @@
   },
   "tab4/gpt-6-luna/Mem0_sync/lag0": {
    "KU": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 65.0,
-    "hi": 86.67,
+    "hi": 86.6667,
     "n": 60,
     "n_questions": 60
    },
    "KU_past": {
-    "mean": 53.85,
-    "lo": 30.77,
-    "hi": 76.92,
+    "mean": 53.8462,
+    "lo": 30.7692,
+    "hi": 76.9231,
     "n": 13,
     "n_questions": 13
    },
    "KU_current": {
-    "mean": 82.98,
-    "lo": 72.34,
-    "hi": 93.62,
+    "mean": 82.9787,
+    "lo": 72.3404,
+    "hi": 93.617,
     "n": 47,
     "n_questions": 47
    },
@@ -2411,42 +2619,42 @@
   },
   "tab5/gemma4/B1_sync/lag0": {
    "All": {
-    "mean": 36.67,
-    "lo": 26.67,
-    "hi": 46.67,
+    "mean": 36.6667,
+    "lo": 26.6667,
+    "hi": 46.6667,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
     "mean": 40.0,
-    "lo": 23.33,
-    "hi": 56.67,
+    "lo": 23.3333,
+    "hi": 56.6667,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 30.0,
-    "lo": 13.33,
-    "hi": 46.67,
+    "lo": 13.3333,
+    "hi": 46.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
     "mean": 40.0,
-    "lo": 23.33,
+    "lo": 23.3333,
     "hi": 60.0,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
     "mean": 50.0,
-    "lo": 33.33,
-    "hi": 66.67,
+    "lo": 33.3333,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 3.33,
+    "mean": 3.3333,
     "lo": 0.0,
     "hi": 10.0,
     "n": 30,
@@ -2455,44 +2663,44 @@
   },
   "tab5/gemma4/B2_async/lag1": {
    "All": {
-    "mean": 46.67,
-    "lo": 35.56,
-    "hi": 57.78,
+    "mean": 46.6667,
+    "lo": 35.5556,
+    "hi": 57.7778,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 16.67,
-    "lo": 3.33,
+    "mean": 16.6667,
+    "lo": 3.3333,
     "hi": 30.0,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 60.0,
     "hi": 90.0,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 46.67,
+    "mean": 46.6667,
     "lo": 30.0,
-    "hi": 63.33,
+    "hi": 63.3333,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 3.33,
+    "mean": 3.3333,
     "lo": 0.0,
     "hi": 10.0,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 13.33,
-    "lo": 3.33,
-    "hi": 26.67,
+    "mean": 13.3333,
+    "lo": 3.3333,
+    "hi": 26.6667,
     "n": 30,
     "n_questions": 30
    }
@@ -2501,19 +2709,19 @@
    "All": {
     "mean": 50.0,
     "lo": 40.0,
-    "hi": 61.11,
+    "hi": 61.1111,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 13.33,
-    "lo": 3.33,
-    "hi": 26.67,
+    "mean": 13.3333,
+    "lo": 3.3333,
+    "hi": 26.6667,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 60.0,
     "hi": 90.0,
     "n": 30,
@@ -2521,22 +2729,22 @@
    },
    "Conditional": {
     "mean": 60.0,
-    "lo": 43.33,
-    "hi": 76.67,
+    "lo": 43.3333,
+    "hi": 76.6667,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 6.67,
+    "mean": 6.6667,
     "lo": 0.0,
-    "hi": 16.67,
+    "hi": 16.6667,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
     "mean": 30.0,
-    "lo": 13.33,
-    "hi": 46.67,
+    "lo": 13.3333,
+    "hi": 46.6667,
     "n": 30,
     "n_questions": 30
    }
@@ -2551,34 +2759,34 @@
    },
    "Dynamic": {
     "mean": 50.0,
-    "lo": 33.33,
-    "hi": 66.67,
+    "lo": 33.3333,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 20.0,
-    "lo": 6.67,
-    "hi": 33.33,
+    "lo": 6.6667,
+    "hi": 33.3333,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
     "mean": 50.0,
-    "lo": 33.33,
+    "lo": 33.3333,
     "hi": 70.0,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
     "mean": 80.0,
-    "lo": 66.67,
-    "hi": 93.33,
+    "lo": 66.6667,
+    "hi": 93.3333,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 3.33,
+    "mean": 3.3333,
     "lo": 0.0,
     "hi": 10.0,
     "n": 30,
@@ -2587,42 +2795,42 @@
   },
   "tab5/gemma4/deltawal_versioned/lag1": {
    "All": {
-    "mean": 47.78,
-    "lo": 37.78,
-    "hi": 58.89,
+    "mean": 47.7778,
+    "lo": 37.7778,
+    "hi": 58.8889,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 46.67,
+    "mean": 46.6667,
     "lo": 30.0,
-    "hi": 63.33,
+    "hi": 63.3333,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 40.0,
-    "lo": 23.33,
-    "hi": 56.67,
+    "lo": 23.3333,
+    "hi": 56.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 56.67,
+    "mean": 56.6667,
     "lo": 40.0,
-    "hi": 76.67,
+    "hi": 76.6667,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
     "mean": 50.0,
-    "lo": 33.33,
-    "hi": 66.67,
+    "lo": 33.3333,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 3.33,
+    "mean": 3.3333,
     "lo": 0.0,
     "hi": 10.0,
     "n": 30,
@@ -2639,34 +2847,34 @@
    },
    "Dynamic": {
     "mean": 50.0,
-    "lo": 33.33,
-    "hi": 66.67,
+    "lo": 33.3333,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 30.0,
-    "lo": 13.33,
-    "hi": 46.67,
+    "lo": 13.3333,
+    "hi": 46.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
     "mean": 40.0,
-    "lo": 23.33,
-    "hi": 56.67,
+    "lo": 23.3333,
+    "hi": 56.6667,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 53.33,
-    "lo": 36.67,
+    "mean": 53.3333,
+    "lo": 36.6667,
     "hi": 70.0,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 3.33,
+    "mean": 3.3333,
     "lo": 0.0,
     "hi": 10.0,
     "n": 30,
@@ -2675,42 +2883,42 @@
   },
   "tab5/glm-5.3-flash/B2_async/lag1": {
    "All": {
-    "mean": 44.44,
-    "lo": 34.44,
-    "hi": 55.56,
+    "mean": 44.4444,
+    "lo": 34.4444,
+    "hi": 55.5556,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 16.67,
-    "lo": 6.67,
+    "mean": 16.6667,
+    "lo": 6.6667,
     "hi": 30.0,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 70.0,
-    "lo": 53.33,
-    "hi": 86.67,
+    "lo": 53.3333,
+    "hi": 86.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 46.67,
+    "mean": 46.6667,
     "lo": 30.0,
-    "hi": 63.33,
+    "hi": 63.3333,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
     "mean": 10.0,
     "lo": 0.0,
-    "hi": 23.33,
+    "hi": 23.3333,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 23.33,
+    "mean": 23.3333,
     "lo": 10.0,
     "hi": 40.0,
     "n": 30,
@@ -2719,80 +2927,80 @@
   },
   "tab5/glm-5.3-flash/B3_recency_matched_user/lag1": {
    "All": {
-    "mean": 46.67,
-    "lo": 36.67,
-    "hi": 56.67,
+    "mean": 46.6667,
+    "lo": 36.6667,
+    "hi": 56.6667,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
     "mean": 20.0,
-    "lo": 6.67,
-    "hi": 33.33,
+    "lo": 6.6667,
+    "hi": 33.3333,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 70.0,
-    "lo": 53.33,
-    "hi": 86.67,
+    "lo": 53.3333,
+    "hi": 86.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
     "mean": 50.0,
-    "lo": 33.33,
-    "hi": 66.67,
+    "lo": 33.3333,
+    "hi": 66.6667,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 13.33,
-    "lo": 3.33,
-    "hi": 26.67,
+    "mean": 13.3333,
+    "lo": 3.3333,
+    "hi": 26.6667,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 13.33,
-    "lo": 3.33,
-    "hi": 26.67,
+    "mean": 13.3333,
+    "lo": 3.3333,
+    "hi": 26.6667,
     "n": 30,
     "n_questions": 30
    }
   },
   "tab5/glm-5.3-flash/deltawal_versioned/lag0": {
    "All": {
-    "mean": 47.78,
-    "lo": 37.78,
-    "hi": 57.78,
+    "mean": 47.7778,
+    "lo": 37.7778,
+    "hi": 57.7778,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 53.33,
-    "lo": 36.67,
+    "mean": 53.3333,
+    "lo": 36.6667,
     "hi": 70.0,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 30.0,
-    "lo": 13.33,
-    "hi": 46.67,
+    "lo": 13.3333,
+    "hi": 46.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
     "mean": 60.0,
-    "lo": 43.33,
-    "hi": 76.67,
+    "lo": 43.3333,
+    "hi": 76.6667,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 63.33,
-    "lo": 46.67,
+    "mean": 63.3333,
+    "lo": 46.6667,
     "hi": 80.0,
     "n": 30,
     "n_questions": 30
@@ -2807,80 +3015,80 @@
   },
   "tab5/glm-5.3-flash/deltawal_versioned/lag1": {
    "All": {
-    "mean": 45.56,
-    "lo": 34.44,
-    "hi": 55.56,
+    "mean": 45.5556,
+    "lo": 34.4444,
+    "hi": 55.5556,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 56.67,
+    "mean": 56.6667,
     "lo": 40.0,
-    "hi": 73.33,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
-    "mean": 26.67,
+    "mean": 26.6667,
     "lo": 10.0,
-    "hi": 43.33,
+    "hi": 43.3333,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 53.33,
-    "lo": 33.33,
-    "hi": 73.33,
+    "mean": 53.3333,
+    "lo": 33.3333,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 63.33,
-    "lo": 43.33,
+    "mean": 63.3333,
+    "lo": 43.3333,
     "hi": 80.0,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 6.67,
+    "mean": 6.6667,
     "lo": 0.0,
-    "hi": 16.67,
+    "hi": 16.6667,
     "n": 30,
     "n_questions": 30
    }
   },
   "tab5/gpt-6-luna/B1_sync/lag0": {
    "All": {
-    "mean": 36.67,
-    "lo": 26.67,
-    "hi": 46.67,
+    "mean": 36.6667,
+    "lo": 26.6667,
+    "hi": 46.6667,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 36.67,
+    "mean": 36.6667,
     "lo": 20.0,
-    "hi": 53.33,
+    "hi": 53.3333,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
-    "mean": 33.33,
-    "lo": 16.67,
+    "mean": 33.3333,
+    "lo": 16.6667,
     "hi": 50.0,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
     "mean": 40.0,
-    "lo": 23.33,
-    "hi": 56.67,
+    "lo": 23.3333,
+    "hi": 56.6667,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 53.33,
-    "lo": 36.67,
+    "mean": 53.3333,
+    "lo": 36.6667,
     "hi": 70.0,
     "n": 30,
     "n_questions": 30
@@ -2895,43 +3103,43 @@
   },
   "tab5/gpt-6-luna/B2_async/lag1": {
    "All": {
-    "mean": 47.78,
-    "lo": 37.78,
-    "hi": 57.78,
+    "mean": 47.7778,
+    "lo": 37.7778,
+    "hi": 57.7778,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 13.33,
-    "lo": 3.33,
-    "hi": 26.67,
+    "mean": 13.3333,
+    "lo": 3.3333,
+    "hi": 26.6667,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
-    "mean": 76.67,
+    "mean": 76.6667,
     "lo": 60.0,
     "hi": 90.0,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 53.33,
-    "lo": 36.67,
+    "mean": 53.3333,
+    "lo": 36.6667,
     "hi": 70.0,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 6.67,
+    "mean": 6.6667,
     "lo": 0.0,
-    "hi": 16.67,
+    "hi": 16.6667,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 16.67,
-    "lo": 3.33,
+    "mean": 16.6667,
+    "lo": 3.3333,
     "hi": 30.0,
     "n": 30,
     "n_questions": 30
@@ -2939,81 +3147,81 @@
   },
   "tab5/gpt-6-luna/B3_recency_matched_user/lag1": {
    "All": {
-    "mean": 45.56,
-    "lo": 34.44,
-    "hi": 55.56,
+    "mean": 45.5556,
+    "lo": 34.4444,
+    "hi": 55.5556,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
     "mean": 20.0,
-    "lo": 6.67,
-    "hi": 33.33,
+    "lo": 6.6667,
+    "hi": 33.3333,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 70.0,
-    "lo": 53.33,
-    "hi": 86.67,
+    "lo": 53.3333,
+    "hi": 86.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 46.67,
+    "mean": 46.6667,
     "lo": 30.0,
-    "hi": 63.33,
+    "hi": 63.3333,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
     "mean": 20.0,
-    "lo": 6.67,
-    "hi": 36.67,
+    "lo": 6.6667,
+    "hi": 36.6667,
     "n": 30,
     "n_questions": 30
    },
    "dynamic_superseded": {
-    "mean": 13.33,
-    "lo": 3.33,
-    "hi": 26.67,
+    "mean": 13.3333,
+    "lo": 3.3333,
+    "hi": 26.6667,
     "n": 30,
     "n_questions": 30
    }
   },
   "tab5/gpt-6-luna/deltawal_versioned/lag0": {
    "All": {
-    "mean": 45.56,
-    "lo": 35.56,
-    "hi": 56.67,
+    "mean": 45.5556,
+    "lo": 35.5556,
+    "hi": 56.6667,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
-    "mean": 56.67,
+    "mean": 56.6667,
     "lo": 40.0,
-    "hi": 73.33,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
-    "mean": 23.33,
+    "mean": 23.3333,
     "lo": 10.0,
     "hi": 40.0,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 56.67,
+    "mean": 56.6667,
     "lo": 40.0,
-    "hi": 73.33,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 66.67,
+    "mean": 66.6667,
     "lo": 50.0,
-    "hi": 83.33,
+    "hi": 83.3333,
     "n": 30,
     "n_questions": 30
    },
@@ -3027,37 +3235,37 @@
   },
   "tab5/gpt-6-luna/deltawal_versioned/lag1": {
    "All": {
-    "mean": 47.78,
-    "lo": 37.78,
-    "hi": 57.78,
+    "mean": 47.7778,
+    "lo": 37.7778,
+    "hi": 57.7778,
     "n": 90,
     "n_questions": 90
    },
    "Dynamic": {
     "mean": 60.0,
-    "lo": 43.33,
-    "hi": 76.67,
+    "lo": 43.3333,
+    "hi": 76.6667,
     "n": 30,
     "n_questions": 30
    },
    "Static": {
     "mean": 40.0,
-    "lo": 23.33,
-    "hi": 56.67,
+    "lo": 23.3333,
+    "hi": 56.6667,
     "n": 30,
     "n_questions": 30
    },
    "Conditional": {
-    "mean": 43.33,
-    "lo": 26.67,
-    "hi": 63.33,
+    "mean": 43.3333,
+    "lo": 26.6667,
+    "hi": 63.3333,
     "n": 30,
     "n_questions": 30
    },
    "static_false_belief": {
-    "mean": 56.67,
+    "mean": 56.6667,
     "lo": 40.0,
-    "hi": 73.33,
+    "hi": 73.3333,
     "n": 30,
     "n_questions": 30
    },
@@ -3218,6 +3426,13 @@
     "p99_ms": 12.71
    }
   },
+  "tab6/cloud_extractor_wall_s": {
+   "median_s": 4.263,
+   "model": "glm-5.3-flash",
+   "n": 9707,
+   "note": "live calls only; measured during concurrent batch extraction (up to 24 parallel requests)",
+   "p95_s": 7.63
+  },
   "tab6/config": {
    "embedder": "qwen3-embedding:0.6b",
    "lag": 3,
@@ -3230,6 +3445,707 @@
    "p50_ms": 11.43,
    "p95_ms": 14.48,
    "p99_ms": 16.2
+  },
+  "tab7/gemma4/B1_sync/lag0": {
+   "All": {
+    "mean": 37.1429,
+    "lo": 27.1429,
+    "hi": 48.5714,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 44.4444,
+    "lo": 25.9259,
+    "hi": 62.963,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 11.7647,
+    "lo": 0.0,
+    "hi": 29.4118,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 46.1538,
+    "lo": 26.9231,
+    "hi": 65.3846,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 58.8235,
+    "lo": 35.2941,
+    "hi": 82.3529,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gemma4/B2_async/lag1": {
+   "All": {
+    "mean": 44.2857,
+    "lo": 32.8571,
+    "hi": 55.7143,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 18.5185,
+    "lo": 3.7037,
+    "hi": 33.3333,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 70.5882,
+    "lo": 47.0588,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 53.8462,
+    "lo": 34.6154,
+    "hi": 73.0769,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 0.0,
+    "lo": 0.0,
+    "hi": 0.0,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gemma4/B3_recency_matched_user/lag1": {
+   "All": {
+    "mean": 50.0,
+    "lo": 37.1429,
+    "hi": 61.4286,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 14.8148,
+    "lo": 3.7037,
+    "hi": 29.6296,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 76.4706,
+    "lo": 52.9412,
+    "hi": 94.1176,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 69.2308,
+    "lo": 50.0,
+    "hi": 84.6154,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 5.8824,
+    "lo": 0.0,
+    "hi": 17.6471,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gemma4/deltawal_versioned/lag0": {
+   "All": {
+    "mean": 44.2857,
+    "lo": 32.8571,
+    "hi": 55.7143,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 55.5556,
+    "lo": 37.037,
+    "hi": 74.0741,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 5.8824,
+    "lo": 0.0,
+    "hi": 17.6471,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 57.6923,
+    "lo": 38.4615,
+    "hi": 76.9231,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 94.1176,
+    "lo": 82.3529,
+    "hi": 100.0,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gemma4/deltawal_versioned/lag1": {
+   "All": {
+    "mean": 51.4286,
+    "lo": 40.0,
+    "hi": 62.8571,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 51.8519,
+    "lo": 33.3333,
+    "hi": 70.3704,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 29.4118,
+    "lo": 11.7647,
+    "hi": 52.9412,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 65.3846,
+    "lo": 46.1538,
+    "hi": 84.6154,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 64.7059,
+    "lo": 41.1765,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/glm-5.3-flash/B1_sync/lag0": {
+   "All": {
+    "mean": 42.8571,
+    "lo": 31.4286,
+    "hi": 54.2857,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 55.5556,
+    "lo": 37.037,
+    "hi": 74.0741,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 17.6471,
+    "lo": 0.0,
+    "hi": 35.2941,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 46.1538,
+    "lo": 26.9231,
+    "hi": 65.3846,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 70.5882,
+    "lo": 47.0588,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/glm-5.3-flash/B2_async/lag1": {
+   "All": {
+    "mean": 42.8571,
+    "lo": 31.4286,
+    "hi": 54.2857,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 18.5185,
+    "lo": 3.7037,
+    "hi": 33.3333,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 64.7059,
+    "lo": 41.1765,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 53.8462,
+    "lo": 34.6154,
+    "hi": 73.0769,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 17.6471,
+    "lo": 0.0,
+    "hi": 35.2941,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/glm-5.3-flash/B3_recency_matched_user/lag1": {
+   "All": {
+    "mean": 47.1429,
+    "lo": 35.7143,
+    "hi": 58.5714,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 22.2222,
+    "lo": 7.4074,
+    "hi": 37.037,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 70.5882,
+    "lo": 47.0588,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 57.6923,
+    "lo": 38.4615,
+    "hi": 76.9231,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 11.7647,
+    "lo": 0.0,
+    "hi": 29.4118,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/glm-5.3-flash/deltawal_versioned/lag0": {
+   "All": {
+    "mean": 51.4286,
+    "lo": 40.0,
+    "hi": 62.8571,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 59.2593,
+    "lo": 40.7407,
+    "hi": 77.7778,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 11.7647,
+    "lo": 0.0,
+    "hi": 29.4118,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 69.2308,
+    "lo": 50.0,
+    "hi": 84.6154,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 82.3529,
+    "lo": 64.7059,
+    "hi": 100.0,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/glm-5.3-flash/deltawal_versioned/lag1": {
+   "All": {
+    "mean": 51.4286,
+    "lo": 38.5714,
+    "hi": 62.8571,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 62.963,
+    "lo": 44.4444,
+    "hi": 81.4815,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 17.6471,
+    "lo": 0.0,
+    "hi": 35.2941,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 61.5385,
+    "lo": 42.3077,
+    "hi": 80.7692,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 64.7059,
+    "lo": 41.1765,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gpt-6-luna/B1_sync/lag0": {
+   "All": {
+    "mean": 37.1429,
+    "lo": 25.7143,
+    "hi": 48.5714,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 40.7407,
+    "lo": 22.2222,
+    "hi": 59.2593,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 17.6471,
+    "lo": 0.0,
+    "hi": 35.2941,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 46.1538,
+    "lo": 26.9231,
+    "hi": 65.3846,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 64.7059,
+    "lo": 41.1765,
+    "hi": 82.3529,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gpt-6-luna/B2_async/lag1": {
+   "All": {
+    "mean": 47.1429,
+    "lo": 35.7143,
+    "hi": 58.5714,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 14.8148,
+    "lo": 3.7037,
+    "hi": 29.6296,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 76.4706,
+    "lo": 52.9412,
+    "hi": 94.1176,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 61.5385,
+    "lo": 42.3077,
+    "hi": 80.7692,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 11.7647,
+    "lo": 0.0,
+    "hi": 29.4118,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gpt-6-luna/B3_recency_matched_user/lag1": {
+   "All": {
+    "mean": 44.2857,
+    "lo": 32.8571,
+    "hi": 55.7143,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 18.5185,
+    "lo": 3.7037,
+    "hi": 33.3333,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 70.5882,
+    "lo": 47.0588,
+    "hi": 88.2353,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 53.8462,
+    "lo": 34.6154,
+    "hi": 73.0769,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 17.6471,
+    "lo": 0.0,
+    "hi": 35.2941,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gpt-6-luna/deltawal_versioned/lag0": {
+   "All": {
+    "mean": 51.4286,
+    "lo": 40.0,
+    "hi": 62.8571,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 62.963,
+    "lo": 44.4444,
+    "hi": 81.4815,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 11.7647,
+    "lo": 0.0,
+    "hi": 29.4118,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 65.3846,
+    "lo": 46.1538,
+    "hi": 84.6154,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 82.3529,
+    "lo": 64.7059,
+    "hi": 100.0,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/gpt-6-luna/deltawal_versioned/lag1": {
+   "All": {
+    "mean": 54.2857,
+    "lo": 42.8571,
+    "hi": 65.7143,
+    "n": 70,
+    "n_questions": 70
+   },
+   "Dynamic": {
+    "mean": 66.6667,
+    "lo": 48.1481,
+    "hi": 85.1852,
+    "n": 27,
+    "n_questions": 27
+   },
+   "Static": {
+    "mean": 41.1765,
+    "lo": 17.6471,
+    "hi": 64.7059,
+    "n": 17,
+    "n_questions": 17
+   },
+   "Conditional": {
+    "mean": 50.0,
+    "lo": 30.7692,
+    "hi": 69.2308,
+    "n": 26,
+    "n_questions": 26
+   },
+   "static_false_belief": {
+    "mean": 58.8235,
+    "lo": 35.2941,
+    "hi": 82.3529,
+    "n": 17,
+    "n_questions": 17
+   }
+  },
+  "tab7/pooled": {
+   "B1_sync/lag0": {
+    "dynamic": {
+     "mean": 46.9136,
+     "lo": 30.8642,
+     "hi": 65.4321,
+     "n": 81,
+     "n_questions": 27
+    },
+    "static_false_belief": {
+     "mean": 64.7059,
+     "lo": 47.0588,
+     "hi": 80.3922,
+     "n": 51,
+     "n_questions": 17
+    }
+   },
+   "deltawal_versioned/lag0": {
+    "dynamic": {
+     "mean": 59.2593,
+     "lo": 41.9753,
+     "hi": 75.3086,
+     "n": 81,
+     "n_questions": 27
+    },
+    "static_false_belief": {
+     "mean": 86.2745,
+     "lo": 70.5882,
+     "hi": 100.0,
+     "n": 51,
+     "n_questions": 17
+    }
+   },
+   "B2_async/lag1": {
+    "dynamic": {
+     "mean": 17.284,
+     "lo": 6.1728,
+     "hi": 30.8642,
+     "n": 81,
+     "n_questions": 27
+    },
+    "static_false_belief": {
+     "mean": 9.8039,
+     "lo": 0.0,
+     "hi": 21.5686,
+     "n": 51,
+     "n_questions": 17
+    }
+   },
+   "B3_recency_matched_user/lag1": {
+    "dynamic": {
+     "mean": 18.5185,
+     "lo": 8.642,
+     "hi": 32.0988,
+     "n": 81,
+     "n_questions": 27
+    },
+    "static_false_belief": {
+     "mean": 11.7647,
+     "lo": 0.0,
+     "hi": 25.4902,
+     "n": 51,
+     "n_questions": 17
+    }
+   },
+   "deltawal_versioned/lag1": {
+    "dynamic": {
+     "mean": 60.4938,
+     "lo": 43.2099,
+     "hi": 77.7778,
+     "n": 81,
+     "n_questions": 27
+    },
+    "static_false_belief": {
+     "mean": 62.7451,
+     "lo": 43.1373,
+     "hi": 80.3922,
+     "n": 51,
+     "n_questions": 17
+    }
+   }
+  },
+  "tab8": {
+   "dynamic": {
+    "evaluated": {
+     "n": 30,
+     "clean_r1": 27,
+     "clean_r2": 28,
+     "clean_both": 27,
+     "label_error_any": 1
+    }
+   },
+   "static": {
+    "evaluated": {
+     "n": 30,
+     "clean_r1": 20,
+     "clean_r2": 20,
+     "clean_both": 17,
+     "label_error_any": 0
+    }
+   },
+   "conditional": {
+    "evaluated": {
+     "n": 30,
+     "clean_r1": 29,
+     "clean_r2": 26,
+     "clean_both": 26,
+     "label_error_any": 0
+    }
+   },
+   "all": {
+    "evaluated": {
+     "n": 90,
+     "clean_r1": 76,
+     "clean_r2": 74,
+     "clean_both": 70,
+     "label_error_any": 1
+    }
+   },
+   "static_evaluated_clean_both_pct": 56.67
+  },
+  "tab9": {
+   "n_dropped": 20,
+   "qids": [
+    "mc-737e8d59-s18-Q_005",
+    "mc-8518c87c-s43-Q_002",
+    "mc-8cb3c9c6-s47-Q_001",
+    "mc-2e62aacf-s28-Q_001",
+    "mc-2e62aacf-s40-Q_001",
+    "mc-4cbe1c3d-s35-Q_001",
+    "mc-575f4af8-s22-Q_001",
+    "mc-5a40c38b-s26-Q_001",
+    "mc-737e8d59-s42-Q_001",
+    "mc-75b15745-s25-Q_001",
+    "mc-8cb3c9c6-s48-Q_001",
+    "mc-9841f645-s28-Q_001",
+    "mc-9dffc5de-s28-Q_001",
+    "mc-9dffc5de-s42-Q_001",
+    "mc-c2efaebe-s41-Q_001",
+    "mc-fc1726f1-s35-Q_001",
+    "mc-3c2e5fe5-s47-Q_003",
+    "mc-a7850e51-s27-Q_003",
+    "mc-f398d596-s50-Q_003",
+    "mc-f5f6c655-s23-Q_003"
+   ]
   }
  }
 }

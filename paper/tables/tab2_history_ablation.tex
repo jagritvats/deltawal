@@ -3,20 +3,20 @@
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
-\caption{History ablations on the 138 held-out questions. (a) KU-past/comparative questions under the synchronous store with in-place overwrite vs.\ append-only versions; destructive cases are the held-out failures that forensics attributed to an overwritten key. (b) Shadow v2 masking threshold, pooled over the five async cells (lag 1/3/5, $p_\text{ooo}\in\{0, 0.3\}$); `off' is the unmasked epoch-merge prompt on the same cells; CIs resample questions. (c) Out-of-order corruption (an updated key left at an older epoch) vs.\ missed merges (old and new value under different keys).}
+\caption{History ablations on the 138 held-out questions. (a) KU-past/comparative questions at lag 0 for B1 sync (in-place store) and DeltaWAL-Versioned (append-only store, empty WAL; the lag-0 cells of Table~\ref{tab:main138}); destructive cases are the held-out failures that forensics attributed to an overwritten key. (b) Shadow v2 masking threshold, pooled over the five async cells (lag 1/3/5, $p_\text{ooo}\in\{0, 0.3\}$); `off' is the unmasked epoch-merge prompt on the same cells; CIs resample questions. (c) Out-of-order corruption (an updated key left at an older epoch) vs.\ missed merges, counted on the knowledge-update questions: the update's facts share no key with the earlier evidence, so no keyed policy can supersede the old value.}
 \label{tab:history}
 \begin{tabular}{llccc}
 \toprule
 \multicolumn{5}{l}{\textbf{(a) Write side: in-place overwrite vs.\ append-only versions}} \\
 \midrule
-Reader & Store (sync, lag 0) & \begin{tabular}[b]{@{}c@{}}KU-past\\($n$=13)\end{tabular} & \begin{tabular}[b]{@{}c@{}}KU-current\\($n$=47)\end{tabular} & \begin{tabular}[b]{@{}c@{}}Destructive\\cases\end{tabular} \\
+Reader & System and store (lag 0) & \begin{tabular}[b]{@{}c@{}}KU-past\\($n$=13)\end{tabular} & \begin{tabular}[b]{@{}c@{}}KU-current\\($n$=47)\end{tabular} & \begin{tabular}[b]{@{}c@{}}Destructive\\cases\end{tabular} \\
 \midrule
-gemma4 (12B, local) & mutable (in-place) & 46.1\,{\scriptsize[23, 69]} & 93.6\,{\scriptsize[85, 100]} & -- \\
-gemma4 (12B, local) & append-only versioned & 92.3\,{\scriptsize[77, 100]} & 93.6\,{\scriptsize[87, 100]} & -- \\
-glm-5.3 (frontier, cloud) & mutable (in-place) & 38.5\,{\scriptsize[15, 62]} & 87.2\,{\scriptsize[77, 96]} & 0/6 \\
-glm-5.3 (frontier, cloud) & append-only versioned & 100.0\,{\scriptsize[100, 100]} & 95.7\,{\scriptsize[89, 100]} & 6/6 \\
-gpt-6-luna (cloud) & mutable (in-place) & 46.1\,{\scriptsize[23, 69]} & 89.4\,{\scriptsize[81, 98]} & 0/7 \\
-gpt-6-luna (cloud) & append-only versioned & 100.0\,{\scriptsize[100, 100]} & 93.6\,{\scriptsize[87, 100]} & 7/7 \\
+gemma4 (12B, local) & B1 sync, mutable & 46.2\,{\scriptsize[23, 69]} & 93.6\,{\scriptsize[85, 100]} & -- \\
+gemma4 (12B, local) & DeltaWAL-V., versioned & 92.3\,{\scriptsize[77, 100]} & 95.7\,{\scriptsize[89, 100]} & -- \\
+glm-5.3 (frontier, cloud) & B1 sync, mutable & 38.5\,{\scriptsize[15, 62]} & 87.2\,{\scriptsize[77, 96]} & 0/6 \\
+glm-5.3 (frontier, cloud) & DeltaWAL-V., versioned & 100.0\,{\scriptsize[100, 100]} & 95.7\,{\scriptsize[89, 100]} & 6/6 \\
+gpt-6-luna (cloud) & B1 sync, mutable & 46.2\,{\scriptsize[23, 69]} & 89.4\,{\scriptsize[81, 98]} & 0/7 \\
+gpt-6-luna (cloud) & DeltaWAL-V., versioned & 100.0\,{\scriptsize[100, 100]} & 91.5\,{\scriptsize[83, 98]} & 7/7 \\
 \midrule
 \multicolumn{4}{l}{Destructive-overwrite cases, cloud readers combined (mutable $\to$ versioned)} & 0/13 $\to$ 13/13 \\
 \bottomrule
@@ -41,12 +41,12 @@ off (unmasked) & -- & 74.5\,{\scriptsize[68, 81]} & 87.3\,{\scriptsize[79, 95]} 
 \toprule
 \multicolumn{6}{l}{\textbf{(c) Store integrity under reordering ($p_\text{ooo}=0.3$, store-level)}} \\
 \midrule
-Lag & Store policy & \begin{tabular}[b]{@{}c@{}}Updated\\keys\end{tabular} & \begin{tabular}[b]{@{}c@{}}Corrupted\\keys (OOCR)\end{tabular} & \begin{tabular}[b]{@{}c@{}}CAS\\rejections\end{tabular} & \begin{tabular}[b]{@{}c@{}}Questions with\\missed merge\end{tabular} \\
+Lag & Store policy & \begin{tabular}[b]{@{}c@{}}Updated\\keys\end{tabular} & \begin{tabular}[b]{@{}c@{}}Corrupted\\keys (OOCR)\end{tabular} & \begin{tabular}[b]{@{}c@{}}CAS\\rejections\end{tabular} & \begin{tabular}[b]{@{}c@{}}KU questions with\\missed merge\end{tabular} \\
 \midrule
-1 & LWW (B2, B3) & 294 & 23 (7.8\%) & 0 & 31/138 (22.5\%) \\
-1 & CAS-fenced (DeltaWAL) & 294 & 0 (0.0\%) & 25 & 31/138 (22.5\%) \\
-3 & LWW (B2, B3) & 267 & 24 (9.0\%) & 0 & 34/138 (24.6\%) \\
-3 & CAS-fenced (DeltaWAL) & 267 & 0 (0.0\%) & 26 & 34/138 (24.6\%) \\
+1 & LWW (B2, B3) & 294 & 23 (7.8\%) & 0 & 9/138 (15.0\%) \\
+1 & CAS-fenced (DeltaWAL) & 294 & 0 (0.0\%) & 25 & 9/138 (15.0\%) \\
+3 & LWW (B2, B3) & 267 & 24 (9.0\%) & 0 & 11/138 (18.3\%) \\
+3 & CAS-fenced (DeltaWAL) & 267 & 0 (0.0\%) & 26 & 11/138 (18.3\%) \\
 \bottomrule
 \end{tabular}
 \end{table*}
