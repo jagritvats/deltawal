@@ -846,13 +846,16 @@ class Builder:
 
     # ---------------------------------------------------------------- paired tests and second-judge robustness
     def _haiku(self, group, reader, rows):
-        """The same rows with the second-family judge's verdicts (claude-haiku-5-5)."""
+        """The same rows with the second-family judge's verdicts (claude-haiku-5-5). Each row's own group and reader
+        are looked up (cells can mix groups), so `group` is only a fallback."""
         if not hasattr(self, "_hz"):
             self._hz = {(g, rd, q, s, l, float(p or 0.0)): (c, a, u)
                         for g, rd, q, s, l, p, c, a, u in self.s.get("rejudge_haiku") or []}
+            self._grp = {id(r): (g, rd) for g, runs in self.R.items() for rd, rs in runs.items() for r in rs}
         out = []
         for r in rows:
-            v = self._hz.get((group, reader, r["qid"], r["system"], r["lag"], float(r["p_ooo"] or 0.0)))
+            g, rd = self._grp.get(id(r), (group, reader))
+            v = self._hz.get((g, rd, r["qid"], r["system"], r["lag"], float(r["p_ooo"] or 0.0)))
             if v is None:
                 return None
             out.append({**r, "correct": bool(v[0]), "abstained": bool(v[1]), "uses_superseded": bool(v[2])})
@@ -877,6 +880,7 @@ class Builder:
             """Per-reader exact McNemar + pooled permutation; optionally the same under the haiku judge."""
             out = {rd: paired(a, b, f) for rd, (a, b) in pairs.items()}
             out["pooled"] = paired_pooled(list(pairs.values()), f)
+            groups = groups or ("?", "?")                   # rows carry their own group (see _haiku)
             if groups:
                 hz = {}
                 for rd, (a, b) in pairs.items():
@@ -1063,8 +1067,6 @@ class Builder:
             return "% no second-judge data\n"
         key = {}
         for g, runs in self.R.items():
-            if g in ("ablation", "reorder", "temporal_probe"):
-                continue
             for rd, rows in runs.items():
                 for r in rows:
                     key[(g, rd, r["qid"], r["system"], r["lag"], float(r["p_ooo"] or 0.0))] = r
@@ -1078,7 +1080,8 @@ class Builder:
         groups = defaultdict(lambda: {"c": ([], []), "s": ([], [])})
         names = {"heldout": "LongMemEval-S held-out grid", "unified": "DeltaWAL-V.\\ cells", "controls": "Controls",
                  "regression60": "Non-update regression", "mem0": "\\memzero{}", "mem0hist": "\\memzero{} history hook",
-                 "memconflict": "MemConflict"}
+                 "memconflict": "MemConflict", "ablation": "Read-path ablations", "b3dated": "B3 + session dates",
+                 "reorder": "DeltaWAL-V.\\ under reordering", "temporal_probe": "gemma4 temporal probes"}
         for g, rd, q, s, l, p, c, a, u in hz:
             r = key.get((g, rd, q, s, l, float(p or 0.0)))
             if r is None:
@@ -1369,8 +1372,8 @@ class Figures:
         a1.set_xlim(0.5, 30000)
         a1.set_ylim(0, 100)
         a1.set_xlabel("Write-ack latency p50 (ms, log)")
-        a1.set_ylabel("Knowledge-update accuracy (%)")
-        a1.set_title("(a) Write path")
+        a1.set_ylabel("Accuracy (%)")
+        a1.set_title("(a) Write path: KU")
         x_dw = wa["deltawal_*"]["p50_ms"]
         a1.text(x_dw * 1.7, 66, "DeltaWAL variants\n(one shared write path;\noffset for legibility)", fontsize=7.2,
                 color=INK, ha="left", va="center", linespacing=1.15)
@@ -1378,7 +1381,8 @@ class Figures:
         a1.text(data[("B2_async", "gemma4")][0] * 1.3, 11, "B2 async", fontsize=7.4, ha="left", va="center")
         # right: read path vs KU (filled) and temporal (hollow). B1/B2 (~4 ms) and DeltaWAL/Shadow (~11 ms) have
         # near-identical read latency, so points are offset horizontally (stated in the caption); readers too.
-        sys_dodge = {"B1_sync": 0.78, "B2_async": 1.28, "deltawal_versioned": 0.78, "deltawal_shadow_v2": 1.28}
+        # offsets keep each pair in its true latency order: B2 (4.09 ms) left of B1 (4.21), DeltaWAL left of Shadow
+        sys_dodge = {"B1_sync": 1.15, "B2_async": 0.87, "deltawal_versioned": 0.78, "deltawal_shadow_v2": 1.28}
         rd_dodge = {"gemma4": 0.93, "glm-5.3": 1.07}
         for system, lag, w, rd in systems:
             for r in readers:
@@ -1531,10 +1535,11 @@ class Figures:
                  ("deltawal_versioned", 0): ("DeltaWAL-V. lag 0", (3, 7), "left"),
                  ("B2_async", 1): ("B2 async", (3, -6), "left"),
                  ("B3_recency_matched_user", 1): ("B3 recency", (3, 6), "left"),
-                 ("deltawal_versioned", 1): ("DeltaWAL-V. lag 1", (-3, 7), "right")}
+                 ("deltawal_versioned", 1): ("DeltaWAL-V. lag 1", (-6, 7), "right")}
         pts = {}
+        keep = self.b._clean70()                    # the clean subset that Section 5.3 reports
         for system, lag in spec:
-            rows = [r for rd in mc_readers for r in cell(self.b.R["memconflict"][rd], system, lag)]
+            rows = [r for rd in mc_readers for r in cell(self.b.R["memconflict"][rd], system, lag) if r["qid"] in keep]
             sx = stat([r for r in rows if r["qtype"] == "memconflict-static"], f=stale, cluster=True)
             sy = stat([r for r in rows if r["qtype"] == "memconflict-dynamic"], cluster=True)
             pts[(system, lag)] = (sx, sy)

@@ -1,5 +1,6 @@
 \section{Additional tables}
 \label{app:tables}
+\suppressfloats[t]
 
 Table~\ref{tab:latency} gives the latency measurements, Table~\ref{tab:mem0} the \memzero{} results per reader, Table~\ref{tab:regression60} the non-update regression by question type, Table~\ref{tab:memconflict} the full MemConflict results per reader, and Table~\ref{tab:memconflict_clean} the same answers re-scored on the questions the first two auditors call clean. Table~\ref{tab:ablation} gives the read-path ablations and the reordering check, Table~\ref{tab:temporal_probe} the gemma4 temporal probes, and Table~\ref{tab:judges} the agreement between judges from two model families.
 
@@ -18,8 +19,10 @@ Table~\ref{tab:latency} gives the latency measurements, Table~\ref{tab:mem0} the
 \label{fig:destructive}
 \end{figure*}
 
+\clearpage
 \section{MemConflict audit}
 \label{app:memconflict}
+\suppressfloats[t]
 
 \paragraph{Procedure.}
 Every evaluated question was audited blind to all model outputs: a rater saw only the question, the gold answer, the construction record and the evidence sessions (user turns in full, assistant turns truncated), and had to support each verdict with verbatim dialogue quotes, which we checked against the dialogue. A question is \emph{clean} if the user's own statements support the gold as worded, the value is about the user, and, for static items, the later statement genuinely contradicts the earlier one; \emph{ambiguous} if a careful reader could defend another answer or the planted conflict is not a real contradiction; a \emph{label error} if the gold is unsupported or belongs to someone else. The rubric is reproduced in Appendix~\ref{app:prompts}. Four raters audited every question independently: R1 and R2 on Claude models, R3 on a GPT model (Codex CLI) and R4 on a Gemini model (Antigravity CLI), the last two in sandboxes with no file or network access beyond the question packets. No rater saw another's verdicts, and each set of verdicts was frozen (and, for R3 and R4, hashed) before being joined with the others or with any model output. Table~\ref{tab:memconflict_audit} gives the counts and Table~\ref{tab:memconflict_dropped} lists the questions excluded from the main clean set.
@@ -35,8 +38,10 @@ To check the judge's static rubric, a GPT-family model labelled the answers of B
 \input{tables/tab8_memconflict_audit}
 \input{tables/tab9_memconflict_dropped}
 
+\clearpage
 \section{Prompts, cue words and audit rubric}
 \label{app:prompts}
+\suppressfloats[t]
 
 All prompts below are rendered from the code that produced the results; placeholders are in angle brackets.
 

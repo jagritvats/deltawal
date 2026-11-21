@@ -59,7 +59,8 @@ from epochmem.runner import select_instances  # noqa: E402
 
 REF = "opencode-zen/qwen3.8-flash"
 FIELDS = ("correct", "abstained", "uses_superseded")
-PASSES = [("p1", "configs/m2_heldout.yaml", ["heldout", "controls", "unified"]),
+PASSES = [("p1", "configs/m2_heldout.yaml", ["heldout", "controls", "unified", "ablation", "reorder", "temporal_probe",
+                                              "b3dated"]),
           ("p2", "configs/m3_regression60.yaml", ["regression60"]),
           ("p3", "configs/m3_mem0.yaml", ["mem0", "mem0hist"]),
           ("p4", "configs/m3_memconflict.yaml", ["memconflict"])]
