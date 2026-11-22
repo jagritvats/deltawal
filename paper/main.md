@@ -28,7 +28,7 @@ Our contributions are:
 
 - External checks on non-update questions, on Mem0 OSS with in-place updates, and on MemConflict with a blind audit of every evaluated question by four LLM raters from three model families, including an exploratory negative result for epoch precedence on false corrections (Section 5).
 
-Code and run artifacts are provided as supplementary material.
+Code and the data snapshot from which every reported number is generated are available at <https://github.com/jagritvats/deltawal>.
 
 # 2 System and Problem Formulation
 

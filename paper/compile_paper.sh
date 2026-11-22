@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile paper/main.tex (TMLR anonymous review mode) with a pinned TeX Live image. Fails on LaTeX errors
+# Compile paper/main.tex (preprint, TMLR style) with a pinned TeX Live image. Fails on LaTeX errors
 # (including unknown manifest keys), undefined references/citations, or overfull boxes >= 1pt.
 # Output: paper/main.pdf, paper/main.log.
 set -euo pipefail
