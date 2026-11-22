@@ -8,6 +8,8 @@ temporary directory (the committed assets are not touched) and prints
   metrics   the numbers manifest (`metrics` of paper/numbers_manifest.json), unchanged
   rounded   manifest values that \\nm prints as integers (1256.5 tokens -> 1256), as printed
   tables    per generated table: the numbers of its caption and of each body row, as printed (same rounding)
+  printed   manifest values whose printed form is not a prefix of the stored value (86.25 printed as 86.3,
+            0.92 printed as 0.920), keyed by manifest key: the exact string \\nm{key} prints
 
 so that `osaudit` can trace every printed number to a results value (see osaudit.toml). It is run through
 `osaudit run`, which records the provenance block in results/paper_numbers.json:
@@ -105,6 +107,21 @@ def rounded(metrics: dict) -> dict[str, int]:
     return out
 
 
+def printed(metrics: dict) -> dict[str, str]:
+    """Manifest floats whose printed decimal string does not occur verbatim at the start of the stored value
+    (86.25 -> "86.3", 0.92 -> "0.920"): the exact string paper/numbers.tex prints for \\nm{key}."""
+    flat: dict = {}
+    for k, v in metrics.items():
+        bpa._flatten(k, v, flat)
+    out = {}
+    for key, v in sorted(flat.items()):
+        if isinstance(v, float):
+            shown = bpa._fmt_value(key, v).replace("{,}", "")
+            if re.fullmatch(r"-?\d+\.\d+", shown) and not re.match(re.escape(shown) + r"\d*$", repr(v)):
+                out[key] = shown
+    return out
+
+
 def main() -> int:
     snap = bpa.read_snapshot()
     with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(sys.stderr):
@@ -112,7 +129,8 @@ def main() -> int:
         manifest = bpa.build(snap)
         tables = {p.stem: table(p.read_text(encoding="utf-8"))
                   for p in sorted((Path(tmp) / "tables").glob("tab*.tex"))}
-    print(json.dumps({"metrics": manifest["metrics"], "rounded": rounded(manifest["metrics"]), "tables": tables},
+    print(json.dumps({"metrics": manifest["metrics"], "rounded": rounded(manifest["metrics"]),
+                      "printed": printed(manifest["metrics"]), "tables": tables},
                      indent=1, ensure_ascii=False))
     return 0
 
