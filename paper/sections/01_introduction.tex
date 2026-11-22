@@ -11,9 +11,9 @@ The main findings are as follows. When the update is the session in flight, an a
 
 Our contributions are:
 \begin{itemize}
-\item A formulation of read-after-write staleness and history erasure for asynchronous fact-extraction memory, with a deterministic lag barrier and reordering model that make both reproducible without timing (Section~\ref{sec:system}).
-\item DeltaWAL and DeltaWAL-Versioned: a write-through raw log with monotonic epochs, a relevance gate and an epoch-ordered merge that needs no extra model call, over an append-only store (Section~\ref{sec:systems}), with ablations that isolate the gate as the component that matters.
-\item An evaluation on LongMemEval-S with three readers, every cell measured natively, paired tests, and two judges from different model families, together with latency on a real broker, log and vector store (Sections~\ref{sec:setup} and~\ref{sec:latency}).
+\item A specification of two consistency failures of asynchronous fact-extraction memory, read-after-write staleness and history erasure, and a deterministic test harness (a lag barrier and a commit-reordering model) that reproduces both without timing dependence (Section~\ref{sec:system}).
+\item DeltaWAL and DeltaWAL-Versioned, a write-ahead-log architecture for agent memory: a write-through raw log with monotonic epochs, a relevance gate and an epoch-ordered merge that needs no extra model call, over an append-only store (\mbox{Section}~\ref{sec:systems}), with ablations that isolate the gate as the component that matters.
+\item An evaluation on LongMemEval-S with three readers, every cell measured natively, paired tests, and two judges from different model families, together with latency on a real broker, log and vector store (Sections~\ref{sec:setup} and~\ref{sec:latency}), released as an open benchmark harness in which every reported number regenerates byte-identically from a committed snapshot.
 \item History ablations showing that in-place overwrite and read-side masking both erase answers about earlier values, and that a compare-and-set fence prevents reordering corruption but not missed merges (Section~\ref{sec:history}).
 \item External checks on non-update questions, on \memzero{} OSS with in-place updates, and on MemConflict with a blind audit of every evaluated question by four LLM raters from three model families, including an exploratory negative result for epoch precedence on false corrections (Section~\ref{sec:external}).
 \end{itemize}
