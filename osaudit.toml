@@ -1288,21 +1288,14 @@ line = 1                      # page
 occurrence = 4
 
 [[numbers.allow]]
-value = "2025"
+value = "1992"
 reason = "publication year of a cited work (author-year citation)"
-file = "paper/main.pdf"
-line = 1                      # page
-occurrence = 5
-
-[[numbers.allow]]
-value = "2.3"
-reason = "section number of a cross-reference hyphenated across lines (Sec-tion)"
 file = "paper/main.pdf"
 line = 2                      # page
 occurrence = 1
 
 [[numbers.allow]]
-value = "1992"
+value = "2025"
 reason = "publication year of a cited work (author-year citation)"
 file = "paper/main.pdf"
 line = 2                      # page
