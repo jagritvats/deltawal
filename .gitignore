@@ -8,3 +8,5 @@ __pycache__/
 /paper/check_assets.pdf
 /paper/main.aux
 /paper/main.log
+/arxiv/build/
+/arxiv/arxiv_bundle.tar.gz

@@ -1,0 +1,36 @@
+DeltaWAL / EpochWAL-Mem
+Copyright (c) 2026 Jagrit Vats. The code in this repository is released under the MIT License (see LICENSE),
+except for the third-party components listed below, which keep their own licenses.
+
+Bundled third-party files
+-------------------------
+paper/style/tmlr.sty, paper/style/tmlr.bst, paper/style/fancyhdr.sty
+  Official TMLR LaTeX style files, unmodified, from https://github.com/JmlrOrg/tmlr-style-file
+  (commit 7bf90efe3a0debbba703c05c43f3ff7e4d4a2992). Apache License 2.0; see paper/style/LICENSE-tmlr-style
+  and paper/style/SOURCE.txt. fancyhdr.sty is the LaTeX package by Piet van Oostrum, distributed with that
+  style bundle under its own (LPPL) terms. Using this style does not imply publication in or endorsement by TMLR.
+
+Datasets (not redistributed)
+----------------------------
+LongMemEval / LongMemEval-S (cleaned)
+  Wu et al., "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory".
+  https://github.com/xiaowu0162/LongMemEval, data at https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned
+  MIT License. Downloaded at a pinned revision by scripts/download_data.py. This repository contains only
+  question ids, per-row verdicts and short excerpts of model-extracted memories needed to document results
+  (paper/data/snapshot.json.gz); no dialogue is included.
+
+MemConflict
+  Tao et al., MemConflict (arXiv:2605.20926), https://github.com/TaoZhen1110/MemConflict
+  The source repository declares no license, so its data is not redistributed here. Obtain Data/Step4_4.jsonl
+  from that repository. This repository contains only question ids, type labels and audit verdicts for the
+  90-question evaluation split, plus the split-construction script (scripts/make_memconflict_split.py).
+
+Dependencies (installed, not bundled)
+-------------------------------------
+Mem0 OSS (mem0ai==1.0.11), https://github.com/mem0ai/mem0, Apache License 2.0.
+Other Python dependencies are pinned in uv.lock and keep their own licenses.
+
+Models
+------
+Experiments call third-party models (local gemma4 and qwen3-embedding through Ollama; cloud readers, extractor and
+judges through an OpenAI-compatible endpoint). No model weights are included; each model's terms apply to its use.

@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage{tmlr}                  % paper/style/tmlr.sty; anonymous review mode (no [accepted]/[preprint] option)
+\usepackage[preprint]{tmlr}        % paper/style/tmlr.sty; preprint mode: authors shown, no TMLR header
 
 \usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb}
@@ -13,11 +13,15 @@
 \newcommand{\memzero}{\text{Mem0}}  % product name; \text{} keeps the numeral lint from reading the 0 as a number
 
 \title{Read-After-Write Staleness and History Erasure in Asynchronous LLM Agent Memory}
-\author{\name Anonymous authors}
+\author{\name Jagrit Vats \\
+\addr Independent Researcher, Bengaluru, India \\
+\addr \url{https://github.com/jagritvats}}
 
-\def\month{MM}
-\def\year{YYYY}
-\def\openreview{\url{https://openreview.net/forum?id=XXXX}}
+\def\month{11}
+\def\year{2026}
+\lhead{Preprint. Work in progress.}  % running header (preprint mode leaves it empty)
+\hypersetup{pdftitle={Read-After-Write Staleness and History Erasure in Asynchronous LLM Agent Memory},
+            pdfauthor={Jagrit Vats}}
 
 \begin{document}
 \maketitle
