@@ -11,7 +11,7 @@ the relevance-gated uncommitted tail with the stored facts in epoch order. **Del
 every fact version.
 
 Paper: *Read-After-Write Staleness and History Erasure in Asynchronous LLM Agent Memory*, Jagrit Vats
-(preprint). PDF: [`paper/main.pdf`](paper/main.pdf).
+(preprint, Zenodo [doi:10.5281/zenodo.24446418](https://doi.org/10.5281/zenodo.24446418)). PDF: [`paper/main.pdf`](paper/main.pdf).
 
 ![DeltaWAL architecture](paper/figures/preview/fig1_architecture.png)
 
@@ -281,8 +281,10 @@ dominated by fact extraction (one extractor call per session); `scripts/zen_spen
   title         = {Read-After-Write Staleness and History Erasure in Asynchronous {LLM} Agent Memory},
   author        = {Vats, Jagrit},
   year          = {2026},
-  howpublished  = {\url{https://github.com/jagritvats/deltawal}},
-  note          = {Preprint}
+  publisher     = {Zenodo},
+  doi           = {10.5281/zenodo.24446418},
+  url           = {https://doi.org/10.5281/zenodo.24446418},
+  note          = {Preprint. Code: \url{https://github.com/jagritvats/deltawal}}
 }
 ```
 

@@ -1,6 +1,6 @@
 # Your async agent memory is answering from the past
 
-*Jagrit Vats. Code: [github.com/jagritvats/deltawal](https://github.com/jagritvats/deltawal). Paper: [`paper/main.pdf`](https://github.com/jagritvats/deltawal/blob/main/paper/main.pdf).*
+*Jagrit Vats. Code: [github.com/jagritvats/deltawal](https://github.com/jagritvats/deltawal). Paper: [doi:10.5281/zenodo.24446418](https://doi.org/10.5281/zenodo.24446418).*
 
 ## The bug
 
